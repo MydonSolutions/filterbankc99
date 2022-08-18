@@ -8,5 +8,6 @@
 double filterbank_ddd_to_dms(double ddd);
 double filterbank_dms_to_ddd(double dms);
 double filterbank_dmsstr_to_ddd(char * dmsstr);
+int filterbank_telescope_id(const char *telescope_name);
 
 #endif // _FILTERBANK_C99_UTILS_H_

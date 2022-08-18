@@ -111,7 +111,6 @@ void * filterbank_buf_write_header(void * buf, const filterbank_header_t * hdr);
 ssize_t filterbank_fd_read_header(int fd, filterbank_header_t * hdr, size_t * hdr_len);
 void * filterbank_buf_read_header(void * buf, filterbank_header_t * hdr, size_t * hdr_len);
 
-int filterbank_telescope_id(const char *telescope_name);
 #ifdef __cplusplus
 }
 #endif
