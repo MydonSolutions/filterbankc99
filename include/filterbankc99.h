@@ -66,15 +66,11 @@
 #include <sys/types.h>
 
 #include "filterbankc99/filterbank_header.h"
+#include "filterbankc99/filterbank_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// Conversion utilities
-
-double filterbank_ddd_to_dms(double ddd);
-double filterbank_dms_to_ddd(double dms);
 
 // Write utilities
 

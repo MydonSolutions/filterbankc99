@@ -9,36 +9,6 @@
 
 #include "filterbankc99.h"
 
-// Conversion utilities
-
-double filterbank_ddd_to_dms(double ddd)
-{
-  int sign = ddd < 0 ? -1 : +1;
-  ddd = fabs(ddd);
-  double mm = 60*fmod(ddd, 1.0);
-  double ss = 60*fmod(mm,  1.0);
-  ddd = floor(ddd);
-  mm  = floor(mm);
-  return sign * (10000*ddd + 100*mm + ss);
-}
-
-double filterbank_dms_to_ddd(double dms)
-{
-  double dd;
-  double mm;
-  double ss;
-
-  int sign = dms < 0 ? -1 : +1;
-  dms = fabs(dms);
-
-  dd = floor(dms / 10000);
-  dms -= 10000 * dd;
-  mm = floor(dms / 100);
-  ss = dms - 100 * mm;
-  dd += mm/60.0 + ss/3600.0;
-  return sign * dd;
-}
-
 // Write utilities
 
 ssize_t filterbank_fd_write_int(int fd, int32_t i)
