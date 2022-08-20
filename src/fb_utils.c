@@ -36,7 +36,7 @@ double filterbank_dms_to_ddd(double dms)
   return sign * dd;
 }
 
-double rawspec_raw_dmsstr_to_d(char * dmsstr)
+double filterbank_dmsstr_to_ddd(char * dmsstr)
 {
   int sign = 1;
   double d = 0.0;
