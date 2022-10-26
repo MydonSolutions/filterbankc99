@@ -22,7 +22,7 @@ ssize_t filterbank_write_FTP(
 
   for(t = 0; t < n_time_samples; t++) {
     for(p = 0; p < n_polarizations; p++) {
-      for(c = 0; c < n_channels; c++) {
+      for(c = n_channels; c-- > 0; ) {
         iovecs[n_iovecs].iov_base = data
           + c*chan_bytestride
           + t*time_bytestride
