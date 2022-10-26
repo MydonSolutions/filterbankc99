@@ -3,11 +3,12 @@
 ssize_t filterbank_write_FTP(
   const int fd,
   void* data,
+  const size_t n_bytes,
   const size_t n_channels,
-  const size_t n_time_samples,
   const size_t n_polarizations,
-  const size_t n_bytes
+  const size_t n_samplebits
 ) {
+  const size_t n_time_samples = n_bytes * 8 / (n_channels * n_polarizations * n_samplebits);
   const size_t chan_bytestride = n_bytes / n_channels;
   const size_t time_bytestride = chan_bytestride / n_time_samples;
   const size_t pol_bytestride = time_bytestride / n_polarizations;
