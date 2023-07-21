@@ -52,4 +52,23 @@ typedef struct {
   
 } filterbank_header_t;
 
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Header functions
+
+ssize_t filterbank_fd_write_padded_header(int fd, const filterbank_header_t * hdr, int32_t minlen);
+ssize_t filterbank_fd_write_header(int fd, const filterbank_header_t * hdr);
+void * filterbank_buf_write_padded_header(void * buf, const filterbank_header_t * hdr, int32_t minlen);
+void * filterbank_buf_write_header(void * buf, const filterbank_header_t * hdr);
+
+ssize_t filterbank_fd_read_header(int fd, filterbank_header_t * hdr, size_t * hdr_len);
+void * filterbank_buf_read_header(void * buf, filterbank_header_t * hdr, size_t * hdr_len);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif // FILTERBANK_HEADER_H_

@@ -67,52 +67,7 @@
 
 #include "filterbankc99/filterbank_header.h"
 #include "filterbankc99/filterbank_utils.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// Write utilities
-
-ssize_t filterbank_fd_write_int(int fd, int32_t i);
-void * filterbank_buf_write_int(void * buf, int32_t i);
-
-ssize_t filterbank_fd_write_double(int fd, double d);
-void * filterbank_buf_write_double(void * buf, double d);
-
-ssize_t filterbank_fd_write_angle(int fd, double d);
-void * filterbank_buf_write_angle(void * buf, double d);
-
-ssize_t filterbank_fd_write_string(int fd, const char * c);
-void * filterbank_buf_write_string(void * buf, const char * c);
-
-// Read utilities
-
-int32_t filterbank_fd_read_int(int fd, int32_t * i);
-void * filterbank_buf_read_int(void * buf, int32_t * i);
-
-double filterbank_fd_read_double(int fd, double * d);
-void * filterbank_buf_read_double(void * buf, double * d);
-
-double filterbank_fd_read_angle(int fd, double * d);
-void * filterbank_buf_read_angle(void * buf, double * d);
-
-ssize_t filterbank_fd_read_string(int fd, char * c, int32_t * n);
-void * filterbank_buf_peek_string(void * buf, char ** c, int32_t * n);
-void * filterbank_buf_read_string(void * buf, char * c, int32_t * n);
-
-// Header functions
-
-ssize_t filterbank_fd_write_padded_header(int fd, const filterbank_header_t * hdr, int32_t minlen);
-ssize_t filterbank_fd_write_header(int fd, const filterbank_header_t * hdr);
-void * filterbank_buf_write_padded_header(void * buf, const filterbank_header_t * hdr, int32_t minlen);
-void * filterbank_buf_write_header(void * buf, const filterbank_header_t * hdr);
-
-ssize_t filterbank_fd_read_header(int fd, filterbank_header_t * hdr, size_t * hdr_len);
-void * filterbank_buf_read_header(void * buf, filterbank_header_t * hdr, size_t * hdr_len);
-
-#ifdef __cplusplus
-}
-#endif
+#include "filterbankc99/filterbank_write_utils.h"
+#include "filterbankc99/filterbank_read_utils.h"
 
 #endif // _FILTERBANK_C99_H_

@@ -1,0 +1,3 @@
+[submodule "subprojects/h5dsc99"]
+	path = subprojects/h5dsc99
+	url = https://github.com/MydonSolutions/h5dsc99

@@ -3,18 +3,20 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
 #include "filterbankc99.h"
+#include "filterbankc99/filterbank_h5.h"
 
 int main(int argc, char * argv[])
 {
   filterbank_header_t hdr;
 
   // 0=fake data; 1=Arecibo; 2=Ooty... others to be added
-  hdr.machine_id = 20; // wtf?
+  hdr.machine_id = 20; // ???
   // 0=FAKE; 1=PSPM; 2=WAPP; 3=OOTY... others to be added
   hdr.telescope_id = 6; // GBT
   // 1=filterbank; 2=time series... others to be added
@@ -38,7 +40,7 @@ int main(int argc, char * argv[])
   // filterbank channel bandwidth (MHz)
   hdr.foff = -0.000002793967724;
   // number of filterbank channels
-  hdr.nchans = 1;
+  hdr.nchans = 128;
   // total number of beams
   hdr.nbeams = 1;
   // total number of beams
@@ -65,31 +67,65 @@ int main(int argc, char * argv[])
     printf("fch1 %.17g\n", hdr.fch1);
     printf("foff %.17g\n", hdr.foff);
   } else {
-    int i;
-    float f = 0;
-    char fname[80];
-
-    for(i=0; i<100; i++) {
-      sprintf(fname, "fbutils_fd.%02d.fil", i);
-      int fdfd  = open(fname,  O_WRONLY | O_CREAT | O_TRUNC, 0664);
-      sprintf(fname, "fbutils_buf.%02d.fil", i);
-      int fdbuf = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0664);
-
-
-      ssize_t nbytes = filterbank_fd_write_padded_header(fdfd, &hdr, 1024+i);
-      write(fdfd, (void *)&f, sizeof(float));
-      printf("%02d: write %lu+4 fd bytes, ", i, nbytes);
-
-      char buf[1024];
-      char * end = filterbank_buf_write_padded_header(buf, &hdr, 1024+i);
-      nbytes = end-buf;
-      write(fdbuf, buf, nbytes);
-      write(fdbuf, (void *)&f, sizeof(float));
-      printf("write %lu+4 buf bytes\n", nbytes);
-
-      close(fdfd);
-      close(fdbuf);
+    int i = 0;
+    size_t floats_byte_size = hdr.nchans*hdr.nifs*sizeof(float);
+    float* floats = malloc(floats_byte_size);
+    for (int c = 0; c < hdr.nchans; c ++) {
+      for (i = 0; i < hdr.nifs; i ++) {
+        floats[i*hdr.nchans + c] = 0.0 + c;
+      }
     }
+    
+    char fname[80];
+    i = 0;
+
+    // direct file descriptor SIGPROC
+    sprintf(fname, "fbutils_fd.%02d.fil", i);
+    int fdfd  = open(fname,  O_WRONLY | O_CREAT | O_TRUNC, 0664);
+    ssize_t nbytes = filterbank_fd_write_padded_header(fdfd, &hdr, 1024+i);
+    printf("%02d: write %lu fd header bytes, ", i, nbytes);
+
+    // character buffer proxy SIGPROC
+    sprintf(fname, "fbutils_buf.%02d.fil", i);
+    int fdbuf = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0664);
+    char buf[1024];
+    char * end = filterbank_buf_write_padded_header(buf, &hdr, 1024+i);
+    nbytes = end-buf;
+    write(fdbuf, buf, nbytes);
+    printf("write %lu buf header bytes\n", nbytes);
+
+    // HDF5 via struct
+    sprintf(fname, "fbutils_h5.%02d.fbh5", i);
+
+    filterbank_h5_file_t fbh5_file = {0};
+    memcpy(&fbh5_file.header, &hdr, sizeof(filterbank_header_t));
+    // shorthand for filterbank_h5_open(fname, &fbh5_file, H5Tcopy(H5T_NATIVE_FLOAT));
+    filterbank_h5_open_float(fname, &fbh5_file);
+    // allocate the data and mask pointers, then clear them
+    filterbank_h5_alloc(&fbh5_file);
+    filterbank_h5_clear_alloc(&fbh5_file);
+    free(fbh5_file.data); // free the allocated data pointer
+    fbh5_file.data = floats; // manually allocate the data pointer
+
+    for(int t=0; t<3; t++) {
+      // direct file descriptor SIGPROC
+      write(fdfd, floats, floats_byte_size);
+      // character buffer proxy SIGPROC
+      write(fdbuf, floats, floats_byte_size);
+      // HDF5 via struct
+      filterbank_h5_write_dynamic(&fbh5_file);
+    }
+
+    // direct file descriptor SIGPROC
+    close(fdfd);
+    // character buffer proxy SIGPROC
+    close(fdbuf);
+    // HDF5 via struct
+    filterbank_h5_close(&fbh5_file);
+    fbh5_file.data = NULL; // hide the manual controlled data pointer
+    filterbank_h5_free(&fbh5_file);
+
+    free(floats);
   }
 
   return 0;
