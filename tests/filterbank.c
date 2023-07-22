@@ -1,19 +1,19 @@
 
 #include <stdio.h>
-#include <unistd.h>
+// #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+// #include <stdint.h>
+// #include <sys/types.h>
+// #include <sys/stat.h>
+// #include <fcntl.h>
 
 #include "filterbankc99.h"
 #include "filterbankc99/filterbank_h5.h"
 
 int main(int argc, char * argv[])
 {
-  filterbank_header_t hdr;
+  filterbank_header_t hdr = {0};
 
   // 0=fake data; 1=Arecibo; 2=Ooty... others to be added
   hdr.machine_id = 20; // ???
@@ -58,7 +58,8 @@ int main(int argc, char * argv[])
   strcpy(hdr.source_name, "1234567890123456789012345678901234567890123456789012345678901234567890123456789");
   // the name of the original data file
   // Max string size is supposed to be 80, but bug in sigproc if over 79
-  strcpy(hdr.rawdatafile, "1234567890123456789012345678901234567890123456789012345678901234567890123456789");
+  // If not allocated a string longer than 0 characters, it is not written out
+  // strcpy(hdr.rawdatafile, "1234567890123456789012345678901234567890123456789012345678901234567890123456789");
 
   if(argc > 1) {
     int fd  = open(argv[1],  O_RDONLY);
@@ -94,13 +95,19 @@ int main(int argc, char * argv[])
     write(fdbuf, buf, nbytes);
     printf("write %lu buf header bytes\n", nbytes);
 
+    // SIGPROC via struct
+    sprintf(fname, "fbutils_struct.%02d.fil", i);
+    filterbank_file_t fb_file = {0};
+    memcpy(&fb_file.header, &hdr, sizeof(filterbank_header_t));
+    filterbank_open(fname, &fb_file);
+    fb_file.data = floats; // manually allocate the data pointer
+
     // HDF5 via struct
     sprintf(fname, "fbutils_h5.%02d.fbh5", i);
 
     filterbank_h5_file_t fbh5_file = {0};
     memcpy(&fbh5_file.header, &hdr, sizeof(filterbank_header_t));
-    // shorthand for filterbank_h5_open(fname, &fbh5_file, H5Tcopy(H5T_NATIVE_FLOAT));
-    filterbank_h5_open_float(fname, &fbh5_file);
+    filterbank_h5_open(fname, &fbh5_file);
     // allocate the data and mask pointers, then clear them
     filterbank_h5_alloc(&fbh5_file);
     filterbank_h5_clear_alloc(&fbh5_file);
@@ -112,6 +119,8 @@ int main(int argc, char * argv[])
       write(fdfd, floats, floats_byte_size);
       // character buffer proxy SIGPROC
       write(fdbuf, floats, floats_byte_size);
+      // SIGPROC via struct
+      filterbank_write_dynamic(&fb_file);
       // HDF5 via struct
       filterbank_h5_write_dynamic(&fbh5_file);
     }
@@ -120,6 +129,8 @@ int main(int argc, char * argv[])
     close(fdfd);
     // character buffer proxy SIGPROC
     close(fdbuf);
+    // SIGPROC via struct
+    filterbank_close(&fb_file);
     // HDF5 via struct
     filterbank_h5_close(&fbh5_file);
     fbh5_file.data = NULL; // hide the manual controlled data pointer

@@ -7,29 +7,51 @@
 
 #include "h5dsc99/h5_dataspace.h"
 #include "filterbankc99/filterbank_header.h"
+#include "filterbankc99/filterbank_printer.h"
 
 typedef struct
 {
-  hid_t file_id;
   filterbank_header_t header;
-  H5_open_dataspace_t ds_data;
   void *data;
-  H5_open_dataspace_t ds_mask;
+  hid_t file_id;
   uint8_t *mask;
+  H5_open_dataspace_t ds_data;
+  H5_open_dataspace_t ds_mask;
 } filterbank_h5_file_t;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void filterbank_h5_open(char* filepath, filterbank_h5_file_t *fbh5file, hid_t Tdata);
+int filterbank_h5_open_explicit(char* filepath, filterbank_h5_file_t *fbh5file, hid_t Tdata);
 
-static inline void filterbank_h5_open_float(char* filepath, filterbank_h5_file_t *fbh5file) {
-  return filterbank_h5_open(filepath, fbh5file, H5Tcopy(H5T_NATIVE_FLOAT));
+static inline int filterbank_h5_open_float(char* filepath, filterbank_h5_file_t *fbh5file) {
+  return filterbank_h5_open_explicit(filepath, fbh5file, H5Tcopy(H5T_NATIVE_FLOAT));
 }
 
-static inline void filterbank_h5_open_double(char* filepath, filterbank_h5_file_t *fbh5file) {
-  return filterbank_h5_open(filepath, fbh5file, H5Tcopy(H5T_NATIVE_DOUBLE));
+static inline int filterbank_h5_open_double(char* filepath, filterbank_h5_file_t *fbh5file) {
+  return filterbank_h5_open_explicit(filepath, fbh5file, H5Tcopy(H5T_NATIVE_DOUBLE));
+}
+
+static inline int filterbank_h5_open(char* filepath, filterbank_h5_file_t *fbh5file) {
+	hid_t elem_type;
+	switch(fbh5file->header.nbits) {
+		case 8:
+			elem_type = H5T_NATIVE_B8;
+			break;
+		case 16:
+			elem_type = H5T_NATIVE_B16;
+			break;
+		case 32:
+			elem_type = H5T_NATIVE_FLOAT;
+			break;
+		case 64:
+			elem_type = H5T_NATIVE_DOUBLE;
+			break;
+		default:
+			return 1;
+	}
+	return filterbank_h5_open_explicit(filepath, fbh5file, H5Tcopy(elem_type));
 }
 
 void filterbank_h5_alloc(filterbank_h5_file_t *fbh5file);

@@ -1,5 +1,5 @@
 project('filterbankc99', 'c',
-  version: '1.1.2',
+  version: '1.1.3',
   default_options: [
     'c_std=c99',
     'buildtype=release',

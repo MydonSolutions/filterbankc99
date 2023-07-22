@@ -2,6 +2,7 @@
 #define FILTERBANK_C99_WRITE_H_
 
 #include <stdio.h>
+#include <string.h>
 #include <malloc.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -9,6 +10,9 @@
 #include <fcntl.h>
 #include <sys/uio.h>
 #include <limits.h>
+
+#include "filterbankc99/filterbank_header.h"
+#include "filterbankc99/filterbank_printer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -36,6 +40,45 @@ ssize_t filterbank_write_FTP(
   const size_t n_polarizations,
   const size_t n_samplebits
 );
+
+// Utilities mimicking those for h5 for easy swapout
+
+typedef struct
+{
+  filterbank_header_t header;
+  void *data;
+  int file_descriptor;
+} filterbank_file_t;
+
+int filterbank_open(char* filepath, filterbank_file_t *fbfile);
+
+static inline size_t _filterbank_data_bytesize(filterbank_file_t *fbfile) {
+  return fbfile->header.nifs*fbfile->header.nchans*fbfile->header.nbits/8;
+}
+
+static inline void filterbank_alloc(filterbank_file_t *fbfile) {
+  fbfile->data = malloc(_filterbank_data_bytesize(fbfile));
+}
+
+static inline void filterbank_clear_alloc(filterbank_file_t *fbfile) {
+  memset(fbfile->data, 0, _filterbank_data_bytesize(fbfile));
+}
+
+static inline void filterbank_free(filterbank_file_t *fbfile) {
+  free(fbfile->data);
+}
+
+static inline void filterbank_close(filterbank_file_t *fbfile) {
+  close(fbfile->file_descriptor);
+}
+
+static inline int filterbank_write_dynamic(filterbank_file_t* fbfile) {
+  return write(
+    fbfile->file_descriptor,
+    fbfile->data,
+    _filterbank_data_bytesize(fbfile)
+  );
+}
 
 #ifdef __cplusplus
 }

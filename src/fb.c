@@ -9,60 +9,6 @@
 
 #include "filterbankc99.h"
 
-// Write utilities
-
-ssize_t filterbank_fd_write_int(int fd, int32_t i)
-{
-  i = htole32(i);
-  return write(fd, &i, sizeof(int32_t));
-}
-
-void * filterbank_buf_write_int(void * buf, int32_t i)
-{
-  i = htole32(i);
-  *((int32_t *)buf) = i;
-  return buf + sizeof(int32_t);
-}
-
-ssize_t filterbank_fd_write_double(int fd, double d)
-{
-  uint64_t i = htole64(*(uint64_t *)&d);
-  return write(fd, &i, sizeof(uint64_t));
-}
-
-void * filterbank_buf_write_double(void * buf, double d)
-{
-  uint64_t i = htole64(*(uint64_t *)&d);
-  *((int64_t *)buf) = i;
-  return buf + sizeof(int64_t);
-}
-
-ssize_t filterbank_fd_write_angle(int fd, double d)
-{
-  return filterbank_fd_write_double(fd, filterbank_ddd_to_dms(d));
-}
-
-void * filterbank_buf_write_angle(void * buf, double d)
-{
-  return filterbank_buf_write_double(buf, filterbank_ddd_to_dms(d));
-}
-
-// Only write max 80 characters
-ssize_t filterbank_fd_write_string(int fd, const char * c)
-{
-  int32_t len = strnlen(c, 80);
-  filterbank_fd_write_int(fd, len);
-  return write(fd, c, len) + sizeof(int32_t);
-}
-
-// Only write max 80 characters
-void * filterbank_buf_write_string(void * buf, const char * c)
-{
-  int32_t len = strnlen(c, 80);
-  buf = filterbank_buf_write_int(buf, len);
-  memcpy(buf, c, len);
-  return buf + len;
-}
 
 // Read utilities
 

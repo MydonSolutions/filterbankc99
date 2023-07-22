@@ -3,4 +3,5 @@ src_lst += files([
   'fb_utils.c',
   'fb_write.c',
   'fb_h5.c',
+  'fb_printer.c',
 ])
