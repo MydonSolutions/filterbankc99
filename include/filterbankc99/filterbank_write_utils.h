@@ -65,7 +65,9 @@ static inline void filterbank_clear_alloc(filterbank_file_t *fbfile) {
 }
 
 static inline void filterbank_free(filterbank_file_t *fbfile) {
-  free(fbfile->data);
+  if (fbfile->data != NULL) {
+    free(fbfile->data);
+  }
 }
 
 static inline void filterbank_close(filterbank_file_t *fbfile) {

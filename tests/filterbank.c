@@ -100,6 +100,10 @@ int main(int argc, char * argv[])
     filterbank_file_t fb_file = {0};
     memcpy(&fb_file.header, &hdr, sizeof(filterbank_header_t));
     filterbank_open(fname, &fb_file);
+    // allocate the data and mask pointers, then clear them
+    filterbank_alloc(&fb_file);
+    filterbank_clear_alloc(&fb_file);
+    free(fb_file.data); // free the allocated data pointer
     fb_file.data = floats; // manually allocate the data pointer
 
     // HDF5 via struct
@@ -131,6 +135,8 @@ int main(int argc, char * argv[])
     close(fdbuf);
     // SIGPROC via struct
     filterbank_close(&fb_file);
+    fb_file.data = NULL; // hide the manual controlled data pointer
+    filterbank_free(&fb_file);
     // HDF5 via struct
     filterbank_h5_close(&fbh5_file);
     fbh5_file.data = NULL; // hide the manual controlled data pointer
