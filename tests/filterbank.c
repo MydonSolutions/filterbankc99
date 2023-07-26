@@ -70,9 +70,10 @@ int main(int argc, char * argv[])
 
     return 0;
   }
-  int i = 0;
+  int i=0, t=0, c=0;
   size_t single_time_bytesize = filterbank_data_bytesize(&hdr);
-  
+  float* floats_ftp_ordering = NULL;
+
   char fname[80];
   i = 0;
 
@@ -118,11 +119,16 @@ int main(int argc, char * argv[])
   free(fbh5_file.data); // free the allocated data pointer
   fbh5_file.data = fb_file.data; // manually allocate the data pointer
 
-  for(int t=0; t<fb_file.ntimes_per_write; t++) {
-    
+  // FTP data malloc
+  floats_ftp_ordering = malloc(H5DSsize(&fbh5_file.ds_data));
+
+  for(t=0; t<fb_file.ntimes_per_write; t++) {
     for (i = 0; i < hdr.nifs; i ++) {
-      for (int c = 0; c < hdr.nchans; c ++) {
-        ((float*)fb_file.data)[(t*hdr.nifs + i)*hdr.nchans + c] = t*1000.0 + c;
+      for (c = 0; c < hdr.nchans; c ++) {
+        float sample = t*1000.0 + c + 1.0;
+
+        ((float*)fb_file.data)[(t*hdr.nifs + i)*hdr.nchans + c] = sample;
+        floats_ftp_ordering[(c*fb_file.ntimes_per_write + t)*hdr.nifs + i] = sample;
       }
     }
 
@@ -133,7 +139,22 @@ int main(int argc, char * argv[])
   }
   // SIGPROC via struct
   filterbank_write(&fb_file);
+
+  fb_file.data = floats_ftp_ordering;
+  filterbank_write_FTP(&fb_file);
+  filterbank_write_FTP_reversed(&fb_file);
+
+  fb_file.data = fbh5_file.data;
+  filterbank_write(&fb_file);
+
   // HDF5 via struct
+  filterbank_h5_write(&fbh5_file);
+
+  fbh5_file.data = floats_ftp_ordering;
+  filterbank_h5_write_FTP(&fbh5_file);
+  filterbank_h5_write_FTP_reversed(&fbh5_file);
+
+  fbh5_file.data = fb_file.data;
   filterbank_h5_write(&fbh5_file);
 
   // direct file descriptor SIGPROC
@@ -147,8 +168,9 @@ int main(int argc, char * argv[])
 
   // HDF5 via struct
   filterbank_h5_close(&fbh5_file);
-  fbh5_file.data = NULL; // hide the manual controlled data pointer
+  fbh5_file.data = NULL; // hide the manually controlled data pointer
   filterbank_h5_free(&fbh5_file);
 
+  free(floats_ftp_ordering);
   return 0;
 }

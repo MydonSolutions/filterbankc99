@@ -375,25 +375,85 @@ int filterbank_h5_change_ntimes_per_write(filterbank_h5_file_t* fbh5file, size_t
 }
 
 int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
-  /*
-  // cache the current dims, for the hyperslab start
-  hsize_t start[3] = {fbh5file->ds_data.dims[0], 0, 0};
-  hsize_t count[3] = {0, 0, fbh5file->ds_data.dimchunks[2]};
-  hsize_t block[3] = {fbh5file->ds_data.dimchunks[0], fbh5file->ds_data.dimchunks[1], 0};
-  */
-
   herr_t status;
   // data
   status = H5DSextend(&fbh5file->ds_data);
-  if (status < 0) { fprintf(stderr, "Error (%s) H5DSextend failure on 'data'", __FUNCTION__); return -1;}
+  if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSextend failure on 'data'"); return -1;}
   status = H5DSwrite(&fbh5file->ds_data, fbh5file->data);
-  if (status < 0) { fprintf(stderr, "Error (%s) H5DSwrite failure on 'data'", __FUNCTION__); return -1;}	
+  if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSwrite failure on 'data'"); return -1;}	
 
   // mask
   status = H5DSextend(&fbh5file->ds_mask);
-  if (status < 0) { fprintf(stderr, "Error (%s) H5DSextend failure on 'mask'", __FUNCTION__); return -1;}
+  if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSextend failure on 'mask'"); return -1;}
   status = H5DSwrite(&fbh5file->ds_mask, fbh5file->mask);
-  if (status < 0) { fprintf(stderr, "Error (%s) H5DSwrite failure on 'mask'", __FUNCTION__); return -1;}	
+  if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSwrite failure on 'mask'"); return -1;}	
 
   return 0;
+}
+
+#define __h5_write_FTP_preamble \
+  /* cache the current dims, for the hyperslab start*/\
+  hsize_t start[3] = {fbh5file->ds_data.dims[0], 0, 0};\
+  hsize_t count[3] = {1, 1, 1};\
+  hsize_t block[3] = {fbh5file->ds_data.dimchunks[0], fbh5file->ds_data.dimchunks[1], 1};\
+  herr_t status;\
+  H5_open_dataspace_t* dataspaces[] = {\
+    &fbh5file->ds_data,\
+    &fbh5file->ds_mask,\
+  };\
+  void* dataspace_datapointers[] = {\
+    fbh5file->data,\
+    fbh5file->mask,\
+  };\
+  const int dataspace_count = sizeof(dataspaces)/sizeof(H5_open_dataspace_t*);\
+  H5_open_dataspace_t* dataspace;\
+  for (int dataspace_i = 0; dataspace_i < dataspace_count; dataspace_i++) {\
+    dataspace = dataspaces[dataspace_i];\
+    status = H5DSextend(dataspace);\
+    if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSextend failure on '%s'", dataspace->name); return -1;}  \
+    /*set chunk dimensions to TP1*/\
+    dataspace->dimchunks[2] = 1;\
+    status = H5DSchunk_update(dataspace);\
+    start[2] = 0;
+
+#define __h5_write_FTP_innermost \
+  status += H5Sclose(dataspace->S_id);\
+  dataspace->S_id = H5Dget_space(dataspace->D_id);\
+  H5Sselect_hyperslab(\
+    dataspace->S_id,\
+    H5S_SELECT_SET,\
+    start,\
+    NULL,\
+    count,\
+    block\
+  );\
+  status = H5DSwrite(\
+    dataspace,\
+    ((char*)dataspace_datapointers[dataspace_i]) + f*H5DSsize(dataspace)\
+  );\
+  if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSwrite failure on '%s'", dataspace->name); return -1;}\
+  start[2] += 1;
+
+#define __h5_write_FTP_conclusion \
+    /*return chunk dimensions to TPF*/\
+    dataspace->dimchunks[2] = fbh5file->header.nchans;\
+    status = H5DSchunk_update(dataspace);\
+  }\
+  return 0;
+
+
+int filterbank_h5_write_FTP(filterbank_h5_file_t* fbh5file) {
+  __h5_write_FTP_preamble
+  for (int f = 0; f < fbh5file->header.nchans; f++) {
+    __h5_write_FTP_innermost
+  }
+  __h5_write_FTP_conclusion
+}
+
+int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file) {
+  __h5_write_FTP_preamble
+  for (int f = fbh5file->header.nchans; f-- > 0; ) {
+    __h5_write_FTP_innermost
+  }
+  __h5_write_FTP_conclusion
 }

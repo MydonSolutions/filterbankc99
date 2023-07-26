@@ -56,7 +56,51 @@ void * filterbank_buf_write_string(void * buf, const char * c)
   return buf + len;
 }
 
-ssize_t filterbank_write_FTP(
+#define __write_FTP_preamble \
+  const size_t n_time_samples = n_bytes * 8 / (n_channels * n_polarizations * n_samplebits);\
+  const size_t chan_bytestride = n_bytes / n_channels;\
+  const size_t time_bytestride = chan_bytestride / n_time_samples;\
+  const size_t pol_bytestride = time_bytestride / n_polarizations;\
+  const long max_iovecs = sysconf(_SC_IOV_MAX);\
+  struct iovec *iovecs = malloc(max_iovecs * sizeof(struct iovec));\
+  long n_iovecs = 0;\
+  ssize_t bytes_written = 0;\
+  size_t t, p, c;\
+  for(t = 0; t < n_time_samples; t++) {\
+    for(p = 0; p < n_polarizations; p++) {
+
+#define __write_FTP_innermost \
+  iovecs[n_iovecs].iov_base = data\
+    + c*chan_bytestride\
+    + t*time_bytestride\
+    + p*pol_bytestride;\
+  iovecs[n_iovecs].iov_len = pol_bytestride;\
+  if(++n_iovecs == max_iovecs) {\
+    const ssize_t _bytes_written = writev(fd, iovecs, n_iovecs);\
+    if(_bytes_written <= 0) {\
+      filterbank_print_error(__FUNCTION__, "writev() error: %ld (@ %lu, %lu, %lu)\n", _bytes_written, c, t, p);\
+      return -1;\
+    }\
+    bytes_written += _bytes_written;\
+    \
+    n_iovecs = 0;\
+  }
+
+#define __write_FTP_conclusion \
+    }\
+  }\
+  if(n_iovecs > 0) {\
+    const ssize_t _bytes_written = writev(fd, iovecs, n_iovecs);\
+    if(_bytes_written <= 0) { \
+      filterbank_print_error(__FUNCTION__, "writev() error: %ld\n", _bytes_written);\
+      return _bytes_written;\
+    }\
+    bytes_written += _bytes_written;\
+  }\
+  free(iovecs);\
+  return bytes_written;
+
+ssize_t filterbank_fd_write_FTP(
   const int fd,
   void* data,
   const size_t n_bytes,
@@ -64,52 +108,27 @@ ssize_t filterbank_write_FTP(
   const size_t n_polarizations,
   const size_t n_samplebits
 ) {
-  const size_t n_time_samples = n_bytes * 8 / (n_channels * n_polarizations * n_samplebits);
-  const size_t chan_bytestride = n_bytes / n_channels;
-  const size_t time_bytestride = chan_bytestride / n_time_samples;
-  const size_t pol_bytestride = time_bytestride / n_polarizations;
-
-  const long max_iovecs = sysconf(_SC_IOV_MAX);
-  struct iovec *iovecs = malloc(max_iovecs * sizeof(struct iovec));
-  long n_iovecs = 0;
-
-  ssize_t bytes_written = 0;
-  size_t t, p, c;
-
-  for(t = 0; t < n_time_samples; t++) {
-    for(p = 0; p < n_polarizations; p++) {
-      for(c = n_channels; c-- > 0; ) {
-        iovecs[n_iovecs].iov_base = data
-          + c*chan_bytestride
-          + t*time_bytestride
-          + p*pol_bytestride;
-        iovecs[n_iovecs].iov_len = pol_bytestride;
-
-        if(++n_iovecs == max_iovecs) {
-          const ssize_t _bytes_written = writev(fd, iovecs, n_iovecs);
-          if(_bytes_written <= 0) { 
-            fprintf(stderr, "writev() error: %ld (@ %lu, %lu, %lu)\n", _bytes_written, c, t, p);
-            return _bytes_written;
-          }
-          bytes_written += _bytes_written;
-          
-          n_iovecs = 0;
-        }
-      }
-    }
+  __write_FTP_preamble
+  for(c = 0; c < n_channels; c++) {
+    __write_FTP_innermost
   }
-  
-  if(n_iovecs > 0) {
-    const ssize_t _bytes_written = writev(fd, iovecs, n_iovecs);
-    if(_bytes_written <= 0) { 
-      fprintf(stderr, "writev() error: %ld (@ %lu, %lu, %lu)\n", _bytes_written, c, t, p);
-      return _bytes_written;
-    }
-    bytes_written += _bytes_written;
+  __write_FTP_conclusion
+}
+
+ssize_t filterbank_fd_write_FTP_reversed(
+  const int fd,
+  void* data,
+  const size_t n_bytes,
+  const size_t n_channels,
+  const size_t n_polarizations,
+  const size_t n_samplebits
+) {
+  __write_FTP_preamble
+  for(c = n_channels; c > 0; ) {
+    c--;
+    __write_FTP_innermost
   }
-  
-  free(iovecs);
-  return bytes_written;
+  __write_FTP_conclusion
 }
 
 // Utilities mimicking those for h5 for easy swapout

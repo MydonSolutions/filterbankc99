@@ -58,6 +58,8 @@ void filterbank_h5_free(filterbank_h5_file_t *fbh5file);
 void filterbank_h5_close(filterbank_h5_file_t *fbh5file);
 
 int filterbank_h5_write(filterbank_h5_file_t* fbh5file);
+int filterbank_h5_write_FTP(filterbank_h5_file_t* fbh5file);
+int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file);
 
 #ifdef __cplusplus
 }

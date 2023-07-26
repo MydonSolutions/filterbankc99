@@ -33,7 +33,16 @@ void * filterbank_buf_write_angle(void * buf, double d);
 ssize_t filterbank_fd_write_string(int fd, const char * c);
 void * filterbank_buf_write_string(void * buf, const char * c);
 
-ssize_t filterbank_write_FTP(
+ssize_t filterbank_fd_write_FTP(
+  const int fd,
+  void* data,
+  const size_t n_bytes,
+  const size_t n_channels,
+  const size_t n_polarizations,
+  const size_t n_samplebits
+);
+
+ssize_t filterbank_fd_write_FTP_reversed(
   const int fd,
   void* data,
   const size_t n_bytes,
@@ -73,11 +82,36 @@ static inline void filterbank_close(filterbank_file_t *fbfile) {
 }
 
 static inline int filterbank_write(filterbank_file_t* fbfile) {
+  const ssize_t bytes_to_write = fbfile->ntimes_per_write*filterbank_data_bytesize(&fbfile->header);
   return write(
     fbfile->file_descriptor,
     fbfile->data,
-    fbfile->ntimes_per_write*filterbank_data_bytesize(&fbfile->header)
-  );
+    bytes_to_write
+  ) == bytes_to_write ? 0 : -1;
+}
+
+static inline int filterbank_write_FTP(filterbank_file_t* fbfile) {
+  const ssize_t bytes_to_write = fbfile->ntimes_per_write*filterbank_data_bytesize(&fbfile->header);
+  return filterbank_fd_write_FTP(
+    fbfile->file_descriptor,
+    fbfile->data,
+    bytes_to_write,
+    fbfile->header.nchans,
+    fbfile->header.nifs,
+    fbfile->header.nbits
+  ) == bytes_to_write ? 0 : -1;
+}
+
+static inline int filterbank_write_FTP_reversed(filterbank_file_t* fbfile) {
+  const ssize_t bytes_to_write = fbfile->ntimes_per_write*filterbank_data_bytesize(&fbfile->header);
+  return filterbank_fd_write_FTP_reversed(
+    fbfile->file_descriptor,
+    fbfile->data,
+    bytes_to_write,
+    fbfile->header.nchans,
+    fbfile->header.nifs,
+    fbfile->header.nbits
+  ) == bytes_to_write ? 0 : -1;
 }
 
 #ifdef __cplusplus
