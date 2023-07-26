@@ -13,6 +13,7 @@
 
 #include "filterbankc99/filterbank_header.h"
 #include "filterbankc99/filterbank_printer.h"
+#include "filterbankc99/filterbank_utils.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -52,16 +53,12 @@ typedef struct
 
 int filterbank_open(char* filepath, filterbank_file_t *fbfile);
 
-static inline size_t _filterbank_data_bytesize(filterbank_file_t *fbfile) {
-  return fbfile->header.nifs*fbfile->header.nchans*fbfile->header.nbits/8;
-}
-
 static inline void filterbank_alloc(filterbank_file_t *fbfile) {
-  fbfile->data = malloc(_filterbank_data_bytesize(fbfile));
+  fbfile->data = malloc(filterbank_data_bytesize(&fbfile->header));
 }
 
 static inline void filterbank_clear_alloc(filterbank_file_t *fbfile) {
-  memset(fbfile->data, 0, _filterbank_data_bytesize(fbfile));
+  memset(fbfile->data, 0, filterbank_data_bytesize(&fbfile->header));
 }
 
 static inline void filterbank_free(filterbank_file_t *fbfile) {
@@ -74,13 +71,18 @@ static inline void filterbank_close(filterbank_file_t *fbfile) {
   close(fbfile->file_descriptor);
 }
 
-static inline int filterbank_write_dynamic(filterbank_file_t* fbfile) {
+static inline int filterbank_write_spectra(filterbank_file_t* fbfile, int n_spectra) {
   return write(
     fbfile->file_descriptor,
     fbfile->data,
-    _filterbank_data_bytesize(fbfile)
+    n_spectra*filterbank_data_bytesize(&fbfile->header)
   );
 }
+
+static inline int filterbank_write_spectrum(filterbank_file_t* fbfile) {
+  return filterbank_write_spectra(fbfile, 1);
+}
+
 
 #ifdef __cplusplus
 }
