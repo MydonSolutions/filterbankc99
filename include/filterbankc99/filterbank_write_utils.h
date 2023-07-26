@@ -47,6 +47,7 @@ ssize_t filterbank_write_FTP(
 typedef struct
 {
   filterbank_header_t header;
+  size_t ntimes_per_write;
   void *data;
   int file_descriptor;
 } filterbank_file_t;
@@ -54,11 +55,11 @@ typedef struct
 int filterbank_open(char* filepath, filterbank_file_t *fbfile);
 
 static inline void filterbank_alloc(filterbank_file_t *fbfile) {
-  fbfile->data = malloc(filterbank_data_bytesize(&fbfile->header));
+  fbfile->data = malloc(fbfile->ntimes_per_write*filterbank_data_bytesize(&fbfile->header));
 }
 
 static inline void filterbank_clear_alloc(filterbank_file_t *fbfile) {
-  memset(fbfile->data, 0, filterbank_data_bytesize(&fbfile->header));
+  memset(fbfile->data, 0, fbfile->ntimes_per_write*filterbank_data_bytesize(&fbfile->header));
 }
 
 static inline void filterbank_free(filterbank_file_t *fbfile) {
@@ -71,18 +72,13 @@ static inline void filterbank_close(filterbank_file_t *fbfile) {
   close(fbfile->file_descriptor);
 }
 
-static inline int filterbank_write_spectra(filterbank_file_t* fbfile, int n_spectra) {
+static inline int filterbank_write(filterbank_file_t* fbfile) {
   return write(
     fbfile->file_descriptor,
     fbfile->data,
-    n_spectra*filterbank_data_bytesize(&fbfile->header)
+    fbfile->ntimes_per_write*filterbank_data_bytesize(&fbfile->header)
   );
 }
-
-static inline int filterbank_write_spectrum(filterbank_file_t* fbfile) {
-  return filterbank_write_spectra(fbfile, 1);
-}
-
 
 #ifdef __cplusplus
 }

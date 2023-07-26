@@ -121,5 +121,9 @@ int filterbank_open(char* filepath, filterbank_file_t *fbfile) {
     return -1;
   }
   filterbank_fd_write_header(fbfile->file_descriptor, &fbfile->header);
+
+  if (fbfile->ntimes_per_write == 0) {
+    fbfile->ntimes_per_write = 1;
+  }
   return 0;
 }

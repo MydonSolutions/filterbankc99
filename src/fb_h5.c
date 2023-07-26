@@ -303,8 +303,12 @@ int filterbank_h5_open_explicit(char* filepath, filterbank_h5_file_t *fbh5file, 
 		return -1;
 	}
 
+  if (fbh5file->ntimes_per_write == 0) {
+    fbh5file->ntimes_per_write = 1;
+  }
+
   const hsize_t dim3_data_lim[] = {H5S_UNLIMITED, fbh5file->header.nifs, fbh5file->header.nchans};
-  const hsize_t dim3_data_chunk[] = {1, fbh5file->header.nifs, fbh5file->header.nchans};
+  const hsize_t dim3_data_chunk[] = {fbh5file->ntimes_per_write, fbh5file->header.nifs, fbh5file->header.nchans};
 
   fbh5file->ds_data.name = "data";
   H5DSset(3, dim3_data_lim, dim3_data_chunk, &fbh5file->ds_data);
@@ -356,7 +360,28 @@ void filterbank_h5_close(filterbank_h5_file_t *fbh5file) {
   H5Fclose(fbh5file->file_id);
 }
 
-int filterbank_h5_write_dynamic(filterbank_h5_file_t* fbh5file) {
+int filterbank_h5_change_ntimes_per_write(filterbank_h5_file_t* fbh5file, size_t ntimes_per_write) {
+  herr_t status = 0;
+  fbh5file->ds_data.dimchunks[0] = ntimes_per_write;
+  status += H5Pset_chunk(fbh5file->ds_data.P_id, fbh5file->ds_data.rank, fbh5file->ds_data.dimchunks);
+  status += H5Sclose(fbh5file->ds_data.C_id);
+	fbh5file->ds_data.C_id = H5Screate_simple(fbh5file->ds_data.rank, fbh5file->ds_data.dimchunks, NULL);
+
+  fbh5file->ds_mask.dimchunks[0] = ntimes_per_write;
+  status += H5Pset_chunk(fbh5file->ds_mask.P_id, fbh5file->ds_mask.rank, fbh5file->ds_mask.dimchunks);
+  status += H5Sclose(fbh5file->ds_mask.C_id);
+	fbh5file->ds_mask.C_id = H5Screate_simple(fbh5file->ds_mask.rank, fbh5file->ds_mask.dimchunks, NULL);
+  return status;
+}
+
+int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
+  /*
+  // cache the current dims, for the hyperslab start
+  hsize_t start[3] = {fbh5file->ds_data.dims[0], 0, 0};
+  hsize_t count[3] = {0, 0, fbh5file->ds_data.dimchunks[2]};
+  hsize_t block[3] = {fbh5file->ds_data.dimchunks[0], fbh5file->ds_data.dimchunks[1], 0};
+  */
+
   herr_t status;
   // data
   status = H5DSextend(&fbh5file->ds_data);

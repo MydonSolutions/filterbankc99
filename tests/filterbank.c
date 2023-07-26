@@ -46,7 +46,7 @@ int main(int argc, char * argv[])
   // total number of beams
   hdr.ibeam = 1;
   // number of bits per time sample
-  hdr.nbits = 32;
+  hdr.nbits = sizeof(float)*8;
   // time stamp (MJD) of first sample
   hdr.tstart = 57856.810798611114;
   // time interval between samples (s)
@@ -67,83 +67,88 @@ int main(int argc, char * argv[])
     printf("header size %lu bytes\n", hdr_size);
     printf("fch1 %.17g\n", hdr.fch1);
     printf("foff %.17g\n", hdr.foff);
-  } else {
-    int i = 0;
-    size_t floats_byte_size = hdr.nchans*hdr.nifs*sizeof(float);
-    float* floats = malloc(floats_byte_size);
-    for (int c = 0; c < hdr.nchans; c ++) {
-      for (i = 0; i < hdr.nifs; i ++) {
-        floats[i*hdr.nchans + c] = 0.0 + c;
+
+    return 0;
+  }
+  int i = 0;
+  size_t single_time_bytesize = filterbank_data_bytesize(&hdr);
+  
+  char fname[80];
+  i = 0;
+
+  // direct file descriptor SIGPROC
+  sprintf(fname, "fbutils_fd.%02d.fil", i);
+  int fdfd  = open(fname,  O_WRONLY | O_CREAT | O_TRUNC, 0664);
+  ssize_t nbytes = filterbank_fd_write_padded_header(fdfd, &hdr, 1024+i);
+  printf("%02d: write %lu fd header bytes, ", i, nbytes);
+
+  // character buffer proxy SIGPROC
+  sprintf(fname, "fbutils_buf.%02d.fil", i);
+  int fdbuf = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0664);
+  char buf[1024];
+  char * end = filterbank_buf_write_padded_header(buf, &hdr, 1024+i);
+  nbytes = end-buf;
+  write(fdbuf, buf, nbytes);
+  printf("write %lu buf header bytes\n", nbytes);
+
+  // SIGPROC via struct
+  sprintf(fname, "fbutils_struct.%02d.fil", i);
+  filterbank_file_t fb_file = {0};
+  fb_file.ntimes_per_write = 3;
+  memcpy(&fb_file.header, &hdr, sizeof(filterbank_header_t));
+  filterbank_open(fname, &fb_file);
+  // allocate the data and mask pointers, then clear them
+  filterbank_alloc(&fb_file);
+  filterbank_clear_alloc(&fb_file);
+
+  // HDF5 via struct
+  sprintf(fname, "fbutils_h5.%02d.fbh5", i);
+
+  filterbank_h5_file_t fbh5_file = {0};
+  memcpy(&fbh5_file.header, &hdr, sizeof(filterbank_header_t));
+  filterbank_h5_open(fname, &fbh5_file);
+  // allocate the data and mask pointers, then clear them
+  filterbank_h5_alloc(&fbh5_file);
+
+  // oh, update the fbh5 data to match that of the fil file
+  filterbank_h5_change_ntimes_per_write(&fbh5_file, fb_file.ntimes_per_write);
+  filterbank_h5_free(&fbh5_file); // free old pointers
+  filterbank_h5_alloc(&fbh5_file); // make new pointers
+  filterbank_h5_clear_alloc(&fbh5_file); // memset(0) new pointers
+  free(fbh5_file.data); // free the allocated data pointer
+  fbh5_file.data = fb_file.data; // manually allocate the data pointer
+
+  for(int t=0; t<fb_file.ntimes_per_write; t++) {
+    
+    for (i = 0; i < hdr.nifs; i ++) {
+      for (int c = 0; c < hdr.nchans; c ++) {
+        ((float*)fb_file.data)[(t*hdr.nifs + i)*hdr.nchans + c] = t*1000.0 + c;
       }
     }
-    
-    char fname[80];
-    i = 0;
 
     // direct file descriptor SIGPROC
-    sprintf(fname, "fbutils_fd.%02d.fil", i);
-    int fdfd  = open(fname,  O_WRONLY | O_CREAT | O_TRUNC, 0664);
-    ssize_t nbytes = filterbank_fd_write_padded_header(fdfd, &hdr, 1024+i);
-    printf("%02d: write %lu fd header bytes, ", i, nbytes);
-
+    write(fdfd, ((char*)fb_file.data) + t*single_time_bytesize, single_time_bytesize);
     // character buffer proxy SIGPROC
-    sprintf(fname, "fbutils_buf.%02d.fil", i);
-    int fdbuf = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0664);
-    char buf[1024];
-    char * end = filterbank_buf_write_padded_header(buf, &hdr, 1024+i);
-    nbytes = end-buf;
-    write(fdbuf, buf, nbytes);
-    printf("write %lu buf header bytes\n", nbytes);
-
-    // SIGPROC via struct
-    sprintf(fname, "fbutils_struct.%02d.fil", i);
-    filterbank_file_t fb_file = {0};
-    memcpy(&fb_file.header, &hdr, sizeof(filterbank_header_t));
-    filterbank_open(fname, &fb_file);
-    // allocate the data and mask pointers, then clear them
-    filterbank_alloc(&fb_file);
-    filterbank_clear_alloc(&fb_file);
-    free(fb_file.data); // free the allocated data pointer
-    fb_file.data = floats; // manually allocate the data pointer
-
-    // HDF5 via struct
-    sprintf(fname, "fbutils_h5.%02d.fbh5", i);
-
-    filterbank_h5_file_t fbh5_file = {0};
-    memcpy(&fbh5_file.header, &hdr, sizeof(filterbank_header_t));
-    filterbank_h5_open(fname, &fbh5_file);
-    // allocate the data and mask pointers, then clear them
-    filterbank_h5_alloc(&fbh5_file);
-    filterbank_h5_clear_alloc(&fbh5_file);
-    free(fbh5_file.data); // free the allocated data pointer
-    fbh5_file.data = floats; // manually allocate the data pointer
-
-    for(int t=0; t<3; t++) {
-      // direct file descriptor SIGPROC
-      write(fdfd, floats, floats_byte_size);
-      // character buffer proxy SIGPROC
-      write(fdbuf, floats, floats_byte_size);
-      // SIGPROC via struct
-      filterbank_write_dynamic(&fb_file);
-      // HDF5 via struct
-      filterbank_h5_write_dynamic(&fbh5_file);
-    }
-
-    // direct file descriptor SIGPROC
-    close(fdfd);
-    // character buffer proxy SIGPROC
-    close(fdbuf);
-    // SIGPROC via struct
-    filterbank_close(&fb_file);
-    fb_file.data = NULL; // hide the manual controlled data pointer
-    filterbank_free(&fb_file);
-    // HDF5 via struct
-    filterbank_h5_close(&fbh5_file);
-    fbh5_file.data = NULL; // hide the manual controlled data pointer
-    filterbank_h5_free(&fbh5_file);
-
-    free(floats);
+    write(fdbuf, ((char*)fb_file.data) + t*single_time_bytesize, single_time_bytesize);
   }
+  // SIGPROC via struct
+  filterbank_write(&fb_file);
+  // HDF5 via struct
+  filterbank_h5_write(&fbh5_file);
+
+  // direct file descriptor SIGPROC
+  close(fdfd);
+  // character buffer proxy SIGPROC
+  close(fdbuf);
+
+  // SIGPROC via struct
+  filterbank_close(&fb_file);
+  filterbank_free(&fb_file);
+
+  // HDF5 via struct
+  filterbank_h5_close(&fbh5_file);
+  fbh5_file.data = NULL; // hide the manual controlled data pointer
+  filterbank_h5_free(&fbh5_file);
 
   return 0;
 }

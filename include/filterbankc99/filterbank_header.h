@@ -59,6 +59,10 @@ extern "C" {
 
 // Header functions
 
+static inline size_t filterbank_data_bytesize(filterbank_header_t *header) {
+  return header->nifs*header->nchans*header->nbits/8;
+}
+
 ssize_t filterbank_fd_write_padded_header(int fd, const filterbank_header_t * hdr, int32_t minlen);
 ssize_t filterbank_fd_write_header(int fd, const filterbank_header_t * hdr);
 void * filterbank_buf_write_padded_header(void * buf, const filterbank_header_t * hdr, int32_t minlen);

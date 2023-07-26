@@ -12,6 +12,7 @@
 typedef struct
 {
   filterbank_header_t header;
+  size_t ntimes_per_write;
   void *data;
   hid_t file_id;
   uint8_t *mask;
@@ -24,14 +25,6 @@ extern "C" {
 #endif
 
 int filterbank_h5_open_explicit(char* filepath, filterbank_h5_file_t *fbh5file, hid_t Tdata);
-
-static inline int filterbank_h5_open_float(char* filepath, filterbank_h5_file_t *fbh5file) {
-  return filterbank_h5_open_explicit(filepath, fbh5file, H5Tcopy(H5T_NATIVE_FLOAT));
-}
-
-static inline int filterbank_h5_open_double(char* filepath, filterbank_h5_file_t *fbh5file) {
-  return filterbank_h5_open_explicit(filepath, fbh5file, H5Tcopy(H5T_NATIVE_DOUBLE));
-}
 
 static inline int filterbank_h5_open(char* filepath, filterbank_h5_file_t *fbh5file) {
 	hid_t elem_type;
@@ -54,6 +47,8 @@ static inline int filterbank_h5_open(char* filepath, filterbank_h5_file_t *fbh5f
 	return filterbank_h5_open_explicit(filepath, fbh5file, H5Tcopy(elem_type));
 }
 
+int filterbank_h5_change_ntimes_per_write(filterbank_h5_file_t* fbh5file, size_t ntimes_per_write);
+
 void filterbank_h5_alloc(filterbank_h5_file_t *fbh5file);
 
 void filterbank_h5_clear_alloc(filterbank_h5_file_t *fbh5file);
@@ -62,7 +57,7 @@ void filterbank_h5_free(filterbank_h5_file_t *fbh5file);
 
 void filterbank_h5_close(filterbank_h5_file_t *fbh5file);
 
-int filterbank_h5_write_dynamic(filterbank_h5_file_t* fbh5file);
+int filterbank_h5_write(filterbank_h5_file_t* fbh5file);
 
 #ifdef __cplusplus
 }
