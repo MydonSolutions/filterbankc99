@@ -363,14 +363,10 @@ void filterbank_h5_close(filterbank_h5_file_t *fbh5file) {
 int filterbank_h5_change_ntimes_per_write(filterbank_h5_file_t* fbh5file, size_t ntimes_per_write) {
   herr_t status = 0;
   fbh5file->ds_data.dimchunks[0] = ntimes_per_write;
-  status += H5Pset_chunk(fbh5file->ds_data.P_id, fbh5file->ds_data.rank, fbh5file->ds_data.dimchunks);
-  status += H5Sclose(fbh5file->ds_data.C_id);
-	fbh5file->ds_data.C_id = H5Screate_simple(fbh5file->ds_data.rank, fbh5file->ds_data.dimchunks, NULL);
+  status += H5DSchunk_update(&fbh5file->ds_data);
 
   fbh5file->ds_mask.dimchunks[0] = ntimes_per_write;
-  status += H5Pset_chunk(fbh5file->ds_mask.P_id, fbh5file->ds_mask.rank, fbh5file->ds_mask.dimchunks);
-  status += H5Sclose(fbh5file->ds_mask.C_id);
-	fbh5file->ds_mask.C_id = H5Screate_simple(fbh5file->ds_mask.rank, fbh5file->ds_mask.dimchunks, NULL);
+  status += H5DSchunk_update(&fbh5file->ds_mask);
   return status;
 }
 
