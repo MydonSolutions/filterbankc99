@@ -1,5 +1,5 @@
 project('filterbankc99', 'c',
-  version: '1.2.1',
+  version: '1.2.2',
   default_options: [
     'c_std=c99',
     'buildtype=release',
@@ -8,6 +8,15 @@ project('filterbankc99', 'c',
 )
 
 add_project_arguments('-D_DEFAULT_SOURCE', language: 'c')
+
+cfg_lst = configuration_data(
+  {
+    'commit': run_command('git', 'describe', '--always', '--dirty', '--abbrev=9', check: true).stdout().strip(),
+    'version': meson.project_version(),
+    'build_type': get_option('buildtype'),
+  }
+)
+
 
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m', required : true)
@@ -18,10 +27,15 @@ inc_lst = [
 ]
 dep_lst = [
   m_dep,
-  # TODO conditionals for HDF5
-  dependency('hdf5'),
-  subproject('h5dsc99').get_variable('lib_h5dsc99_dep'),
 ]
+
+hdf5_dep = dependency('HDF5', required: false)
+cfg_lst.set('hdf5', hdf5_dep.found())
+if hdf5_dep.found()
+  dep_lst += [
+    subproject('h5dsc99').get_variable('lib_h5dsc99_dep')
+  ]
+endif
 
 subdir('include')
 subdir('src')

@@ -1,0 +1,5 @@
+#define FILTERBANKC99_VERSION_STR "@version@"
+#define FILTERBANKC99_COMMIT_STR "@commit@"
+#define FILTERBANKC99_BUILD_TYPE "@build_type@"
+
+#mesondefine HDF5

@@ -9,7 +9,12 @@
 // #include <fcntl.h>
 
 #include "filterbankc99.h"
+
+#include "filterbankc99_config.hh"
+
+#ifdef HDF5
 #include "filterbankc99/filterbank_h5.h"
+#endif
 
 int main(int argc, char * argv[])
 {
@@ -73,6 +78,7 @@ int main(int argc, char * argv[])
   int i=0, t=0, c=0;
   size_t single_time_bytesize = filterbank_data_bytesize(&hdr);
   float* floats_ftp_ordering = NULL;
+  float* floats_tpf_ordering = NULL;
 
   char fname[80];
   i = 0;
@@ -102,6 +108,7 @@ int main(int argc, char * argv[])
   filterbank_alloc(&fb_file);
   filterbank_clear_alloc(&fb_file);
 
+#ifdef HDF5
   // HDF5 via struct
   sprintf(fname, "fbutils_h5.%02d.fbh5", i);
 
@@ -118,16 +125,23 @@ int main(int argc, char * argv[])
   filterbank_h5_clear_alloc(&fbh5_file); // memset(0) new pointers
   free(fbh5_file.data); // free the allocated data pointer
   fbh5_file.data = fb_file.data; // manually allocate the data pointer
+#endif
 
-  // FTP data malloc
-  floats_ftp_ordering = malloc(H5DSsize(&fbh5_file.ds_data));
+  // FTP and TPF data malloc
+  const size_t floats_size = fb_file.ntimes_per_write
+    * hdr.nifs
+    * hdr.nchans
+    * sizeof(float);
+  floats_tpf_ordering = malloc(floats_size);
+  floats_ftp_ordering = malloc(floats_size);
 
-  for(t=0; t<fb_file.ntimes_per_write; t++) {
+
+  for(t=0; t < fb_file.ntimes_per_write; t++) {
     for (i = 0; i < hdr.nifs; i ++) {
       for (c = 0; c < hdr.nchans; c ++) {
         float sample = t*1000.0 + c + 1.0;
 
-        ((float*)fb_file.data)[(t*hdr.nifs + i)*hdr.nchans + c] = sample;
+        floats_tpf_ordering[(t*hdr.nifs + i)*hdr.nchans + c] = sample;
         floats_ftp_ordering[(c*fb_file.ntimes_per_write + t)*hdr.nifs + i] = sample;
       }
     }
@@ -144,9 +158,10 @@ int main(int argc, char * argv[])
   filterbank_write_FTP(&fb_file);
   filterbank_write_FTP_reversed(&fb_file);
 
-  fb_file.data = fbh5_file.data;
+  fb_file.data = floats_tpf_ordering;
   filterbank_write(&fb_file);
 
+#ifdef HDF5
   // HDF5 via struct
   filterbank_h5_write(&fbh5_file);
 
@@ -154,8 +169,9 @@ int main(int argc, char * argv[])
   filterbank_h5_write_FTP(&fbh5_file);
   filterbank_h5_write_FTP_reversed(&fbh5_file);
 
-  fbh5_file.data = fb_file.data;
+  fbh5_file.data = floats_tpf_ordering;
   filterbank_h5_write(&fbh5_file);
+#endif
 
   // direct file descriptor SIGPROC
   close(fdfd);
@@ -166,11 +182,14 @@ int main(int argc, char * argv[])
   filterbank_close(&fb_file);
   filterbank_free(&fb_file);
 
+#ifdef HDF5
   // HDF5 via struct
   filterbank_h5_close(&fbh5_file);
   fbh5_file.data = NULL; // hide the manually controlled data pointer
   filterbank_h5_free(&fbh5_file);
+#endif
 
+  free(floats_tpf_ordering);
   free(floats_ftp_ordering);
   return 0;
 }
