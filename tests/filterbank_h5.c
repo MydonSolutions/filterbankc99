@@ -4,8 +4,13 @@
 
 #include "filterbankc99.h"
 
+
 int main(int argc, char * argv[])
 {
+#ifndef HDF5
+  return 1;
+#else
+  
   filterbank_header_t hdr = {0};
 
   // 0=fake data; 1=Arecibo; 2=Ooty... others to be added
@@ -71,33 +76,26 @@ int main(int argc, char * argv[])
   char fname[80];
   i = 0;
 
-  // direct file descriptor SIGPROC
-  sprintf(fname, "fbutils_fd.%02d.fil", i);
-  int fdfd  = open(fname,  O_WRONLY | O_CREAT | O_TRUNC, 0664);
-  ssize_t nbytes = filterbank_fd_write_padded_header(fdfd, &hdr, 1024+i);
-  printf("%02d: write %lu fd header bytes, ", i, nbytes);
+  // HDF5 via struct
+  sprintf(fname, "fbutils_h5.%02d.fbh5", i);
 
-  // character buffer proxy SIGPROC
-  sprintf(fname, "fbutils_buf.%02d.fil", i);
-  int fdbuf = open(fname, O_WRONLY | O_CREAT | O_TRUNC, 0664);
-  char buf[1024];
-  char * end = filterbank_buf_write_padded_header(buf, &hdr, 1024+i);
-  nbytes = end-buf;
-  write(fdbuf, buf, nbytes);
-  printf("write %lu buf header bytes\n", nbytes);
-
-  // SIGPROC via struct
-  sprintf(fname, "fbutils_struct.%02d.fil", i);
-  filterbank_file_t fb_file = {0};
-  fb_file.ntimes_per_write = 3;
-  memcpy(&fb_file.header, &hdr, sizeof(filterbank_header_t));
-  filterbank_open(fname, &fb_file);
+  filterbank_h5_file_t fbh5_file = {0};
+  memcpy(&fbh5_file.header, &hdr, sizeof(filterbank_header_t));
+  filterbank_h5_open(fname, &fbh5_file);
   // allocate the data and mask pointers, then clear them
-  filterbank_alloc(&fb_file);
-  filterbank_clear_alloc(&fb_file);
+  filterbank_h5_alloc(&fbh5_file);
+
+  const int ntimes_per_write = 3;
+  // oh, update the fbh5 data to match that of the fil file
+  filterbank_h5_change_ntimes_per_write(&fbh5_file, ntimes_per_write);
+  filterbank_h5_free(&fbh5_file); // free old pointers
+  filterbank_h5_alloc(&fbh5_file); // make new pointers
+  filterbank_h5_clear_alloc(&fbh5_file); // memset(0) new pointers
+  free(fbh5_file.data); // free the allocated data pointer
+  fbh5_file.data = floats_tpf_ordering; // manually allocate the data pointer
 
   // FTP and TPF data malloc
-  const size_t floats_size = fb_file.ntimes_per_write
+  const size_t floats_size = ntimes_per_write
     * hdr.nifs
     * hdr.nchans
     * sizeof(float);
@@ -105,41 +103,34 @@ int main(int argc, char * argv[])
   floats_ftp_ordering = malloc(floats_size);
 
 
-  for(t=0; t < fb_file.ntimes_per_write; t++) {
+  for(t=0; t < ntimes_per_write; t++) {
     for (i = 0; i < hdr.nifs; i ++) {
       for (c = 0; c < hdr.nchans; c ++) {
         float sample = t*1000.0 + c + 1.0;
 
         floats_tpf_ordering[(t*hdr.nifs + i)*hdr.nchans + c] = sample;
-        floats_ftp_ordering[(c*fb_file.ntimes_per_write + t)*hdr.nifs + i] = sample;
+        floats_ftp_ordering[(c*ntimes_per_write + t)*hdr.nifs + i] = sample;
       }
     }
-
-    // direct file descriptor SIGPROC
-    write(fdfd, ((char*)fb_file.data) + t*single_time_bytesize, single_time_bytesize);
-    // character buffer proxy SIGPROC
-    write(fdbuf, ((char*)fb_file.data) + t*single_time_bytesize, single_time_bytesize);
   }
-  // SIGPROC via struct
-  filterbank_write(&fb_file);
 
-  fb_file.data = floats_ftp_ordering;
-  filterbank_write_FTP(&fb_file);
-  filterbank_write_FTP_reversed(&fb_file);
+  // HDF5 via struct
+  filterbank_h5_write(&fbh5_file);
 
-  fb_file.data = floats_tpf_ordering;
-  filterbank_write(&fb_file);
+  fbh5_file.data = floats_ftp_ordering;
+  filterbank_h5_write_FTP(&fbh5_file);
+  filterbank_h5_write_FTP_reversed(&fbh5_file);
 
-  // direct file descriptor SIGPROC
-  close(fdfd);
-  // character buffer proxy SIGPROC
-  close(fdbuf);
+  fbh5_file.data = floats_tpf_ordering;
+  filterbank_h5_write(&fbh5_file);
 
-  // SIGPROC via struct
-  filterbank_close(&fb_file);
-  filterbank_free(&fb_file);
+  // HDF5 via struct
+  filterbank_h5_close(&fbh5_file);
+  fbh5_file.data = NULL; // hide the manually controlled data pointer
+  filterbank_h5_free(&fbh5_file);
 
-  // free(floats_tpf_ordering); // freed above via fb_file.data
+  free(floats_tpf_ordering);
   free(floats_ftp_ordering);
   return 0;
+#endif
 }

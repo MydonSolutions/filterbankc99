@@ -1,5 +1,5 @@
 project('filterbankc99', 'c',
-  version: '1.2.2',
+  version: '1.2.3',
   default_options: [
     'c_std=c99',
     'buildtype=release',
@@ -30,7 +30,7 @@ dep_lst = [
 ]
 
 hdf5_dep = dependency('HDF5', required: false)
-cfg_lst.set('hdf5', hdf5_dep.found())
+cfg_lst.set('HDF5', hdf5_dep.found())
 if hdf5_dep.found()
   dep_lst += [
     subproject('h5dsc99').get_variable('lib_h5dsc99_dep')

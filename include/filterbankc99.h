@@ -65,9 +65,15 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#include "filterbankc99_config.h"
+
 #include "filterbankc99/filterbank_header.h"
 #include "filterbankc99/filterbank_utils.h"
 #include "filterbankc99/filterbank_write_utils.h"
 #include "filterbankc99/filterbank_read_utils.h"
+
+#ifdef HDF5
+#include "filterbankc99/filterbank_h5.h"
+#endif
 
 #endif // _FILTERBANK_C99_H_
