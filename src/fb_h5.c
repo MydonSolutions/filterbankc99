@@ -306,23 +306,23 @@ int filterbank_h5_open_explicit(char* filepath, filterbank_h5_file_t *fbh5file, 
   if (fbh5file->ntimes_per_write == 0) {
     fbh5file->ntimes_per_write = 1;
   }
-  if (fbh5file->nchans_per_chunk == 0) {
-    // auto-scale nchans_per_chunk for optimal chunks of <= 1 MB
-    fbh5file->nchans_per_chunk = 1024*1024/(fbh5file->ntimes_per_write*fbh5file->header.nifs*H5Tget_size(Tdata));
-    if (fbh5file->nchans_per_chunk > fbh5file->header.nchans) {
-      fbh5file->nchans_per_chunk = fbh5file->header.nchans;
+  if (fbh5file->nchans_per_write == 0) {
+    // auto-scale nchans_per_write for optimal chunks of <= 1 MB
+    fbh5file->nchans_per_write = 1024*1024/(fbh5file->ntimes_per_write*fbh5file->header.nifs*H5Tget_size(Tdata));
+    if (fbh5file->nchans_per_write > fbh5file->header.nchans) {
+      fbh5file->nchans_per_write = fbh5file->header.nchans;
     }
-    if (fbh5file->nchans_per_chunk == 0) {
-      fbh5file->nchans_per_chunk = 1;
+    if (fbh5file->nchans_per_write == 0) {
+      fbh5file->nchans_per_write = 1;
     }
-    while (fbh5file->header.nchans%fbh5file->nchans_per_chunk != 0) {
-      fbh5file->nchans_per_chunk -= 1;
+    while (fbh5file->header.nchans%fbh5file->nchans_per_write != 0) {
+      fbh5file->nchans_per_write -= 1;
     }
-    filterbank_print_info(__FUNCTION__, "Set nchans_per_chunk=%lu attempting to achieve 1 MB chunks.", fbh5file->nchans_per_chunk);
+    filterbank_print_info(__FUNCTION__, "Set nchans_per_write=%lu attempting to achieve 1 MB chunks.", fbh5file->nchans_per_write);
   }
 
   const hsize_t dim3_data_lim[] = {H5S_UNLIMITED, fbh5file->header.nifs, fbh5file->header.nchans};
-  const hsize_t dim3_data_chunk[] = {fbh5file->ntimes_per_write, fbh5file->header.nifs, fbh5file->nchans_per_chunk};
+  const hsize_t dim3_data_chunk[] = {fbh5file->ntimes_per_write, fbh5file->header.nifs, fbh5file->nchans_per_write};
 
   fbh5file->ds_data.name = "data";
   H5DSset(3, dim3_data_lim, dim3_data_chunk, &fbh5file->ds_data);
@@ -444,7 +444,7 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
 
 #define __h5_write_FTP_conclusion \
     /*return chunk dimensions to TPF*/\
-    dataspace->dimchunks[2] = fbh5file->nchans_per_chunk;\
+    dataspace->dimchunks[2] = fbh5file->nchans_per_write;\
     status = H5DSchunk_update(dataspace);\
   }\
   return 0;
@@ -452,7 +452,7 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
 
 int filterbank_h5_write_FTP(filterbank_h5_file_t* fbh5file) {
   __h5_write_FTP_preamble
-  for (int f = 0; f < fbh5file->nchans_per_chunk; f++) {
+  for (int f = 0; f < fbh5file->nchans_per_write; f++) {
     __h5_write_FTP_innermost
   }
   __h5_write_FTP_conclusion
@@ -460,7 +460,7 @@ int filterbank_h5_write_FTP(filterbank_h5_file_t* fbh5file) {
 
 int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file) {
   __h5_write_FTP_preamble
-  for (int f = fbh5file->nchans_per_chunk; f-- > 0; ) {
+  for (int f = fbh5file->nchans_per_write; f-- > 0; ) {
     __h5_write_FTP_innermost
   }
   __h5_write_FTP_conclusion

@@ -13,7 +13,7 @@ typedef struct
 {
   filterbank_header_t header;
   size_t ntimes_per_write;
-  size_t nchans_per_chunk;
+  size_t nchans_per_write;
   void *data;
   hid_t file_id;
   uint8_t *mask;

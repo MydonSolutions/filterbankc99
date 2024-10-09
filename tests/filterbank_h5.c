@@ -81,7 +81,7 @@ int main(int argc, char * argv[])
 
   filterbank_h5_file_t fbh5_file = {0};
   int chunks = 1;
-  fbh5_file.nchans_per_chunk = hdr.nchans/chunks;
+  fbh5_file.nchans_per_write = hdr.nchans/chunks;
   memcpy(&fbh5_file.header, &hdr, sizeof(filterbank_header_t));
   filterbank_h5_open(fname, &fbh5_file);
   // allocate the data and mask pointers, then clear them
@@ -109,11 +109,11 @@ int main(int argc, char * argv[])
   for (chunk=0; chunk < chunks; chunk ++) {
     for (t=0; t < ntimes_per_write; t++) {
       for (i = 0; i < hdr.nifs; i ++) {
-        for (c = 0; c < fbh5_file.nchans_per_chunk; c ++) {
-          int chan = (chunk*fbh5_file.nchans_per_chunk+c);
+        for (c = 0; c < fbh5_file.nchans_per_write; c ++) {
+          int chan = (chunk*fbh5_file.nchans_per_write+c);
           float sample = t*1000.0 + chan + 1.0;
 
-          floats_tpf_ordering[((chunk*fbh5_file.ntimes_per_write + t)*hdr.nifs + i)*fbh5_file.nchans_per_chunk + c] = sample;
+          floats_tpf_ordering[((chunk*fbh5_file.ntimes_per_write + t)*hdr.nifs + i)*fbh5_file.nchans_per_write + c] = sample;
           floats_ftp_ordering[(chan*ntimes_per_write + t)*hdr.nifs + i] = sample;
         }
       }
@@ -121,7 +121,7 @@ int main(int argc, char * argv[])
   }
   const size_t chunk_element_count = ntimes_per_write
     * hdr.nifs
-    * fbh5_file.nchans_per_chunk;
+    * fbh5_file.nchans_per_write;
 
   // HDF5 via struct
   for (chunk = 0; chunk < chunks; chunk ++) {
