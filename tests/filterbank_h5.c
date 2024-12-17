@@ -8,6 +8,7 @@
 int main(int argc, char * argv[])
 {
 #ifndef HDF5
+  fprintf(stderr, "HDF5 is not defined...");
   return 1;
 #else
   
@@ -68,8 +69,7 @@ int main(int argc, char * argv[])
 
     return 0;
   }
-  int i=0, t=0, c=0;
-  size_t single_time_bytesize = filterbank_data_bytesize(&hdr);
+  int i=0, t=0, c=0, chunk=0;
   float* floats_ftp_ordering = NULL;
   float* floats_tpf_ordering = NULL;
 
@@ -80,10 +80,13 @@ int main(int argc, char * argv[])
   sprintf(fname, "fbutils_h5.%02d.fbh5", i);
 
   filterbank_h5_file_t fbh5_file = {0};
+  int chunks = 1;
+  fbh5_file.nchans_per_write = hdr.nchans/chunks;
   memcpy(&fbh5_file.header, &hdr, sizeof(filterbank_header_t));
   filterbank_h5_open(fname, &fbh5_file);
   // allocate the data and mask pointers, then clear them
   filterbank_h5_alloc(&fbh5_file);
+  fprintf(stdout, "opened....\n");
 
   const int ntimes_per_write = 3;
   // oh, update the fbh5 data to match that of the fil file
@@ -92,7 +95,6 @@ int main(int argc, char * argv[])
   filterbank_h5_alloc(&fbh5_file); // make new pointers
   filterbank_h5_clear_alloc(&fbh5_file); // memset(0) new pointers
   free(fbh5_file.data); // free the allocated data pointer
-  fbh5_file.data = floats_tpf_ordering; // manually allocate the data pointer
 
   // FTP and TPF data malloc
   const size_t floats_size = ntimes_per_write
@@ -100,29 +102,46 @@ int main(int argc, char * argv[])
     * hdr.nchans
     * sizeof(float);
   floats_tpf_ordering = malloc(floats_size);
+  memset(floats_tpf_ordering, 0, floats_size);
   floats_ftp_ordering = malloc(floats_size);
+  memset(floats_ftp_ordering, 0, floats_size);
 
+  for (chunk=0; chunk < chunks; chunk ++) {
+    for (t=0; t < ntimes_per_write; t++) {
+      for (i = 0; i < hdr.nifs; i ++) {
+        for (c = 0; c < fbh5_file.nchans_per_write; c ++) {
+          int chan = (chunk*fbh5_file.nchans_per_write+c);
+          float sample = t*1000.0 + chan + 1.0;
 
-  for(t=0; t < ntimes_per_write; t++) {
-    for (i = 0; i < hdr.nifs; i ++) {
-      for (c = 0; c < hdr.nchans; c ++) {
-        float sample = t*1000.0 + c + 1.0;
-
-        floats_tpf_ordering[(t*hdr.nifs + i)*hdr.nchans + c] = sample;
-        floats_ftp_ordering[(c*ntimes_per_write + t)*hdr.nifs + i] = sample;
+          floats_tpf_ordering[((chunk*fbh5_file.ntimes_per_write + t)*hdr.nifs + i)*fbh5_file.nchans_per_write + c] = sample;
+          floats_ftp_ordering[(chan*ntimes_per_write + t)*hdr.nifs + i] = sample;
+        }
       }
     }
   }
+  const size_t chunk_element_count = ntimes_per_write
+    * hdr.nifs
+    * fbh5_file.nchans_per_write;
 
   // HDF5 via struct
-  filterbank_h5_write(&fbh5_file);
+  for (chunk = 0; chunk < chunks; chunk ++) {
+    fbh5_file.data = floats_tpf_ordering+chunk*chunk_element_count; // manually allocate the data pointer
+    filterbank_h5_write(&fbh5_file);
+  }
 
-  fbh5_file.data = floats_ftp_ordering;
-  filterbank_h5_write_FTP(&fbh5_file);
-  filterbank_h5_write_FTP_reversed(&fbh5_file);
+  for (chunk = 0; chunk < chunks; chunk ++) {
+    fbh5_file.data = floats_ftp_ordering+chunk*chunk_element_count;
+    filterbank_h5_write_FTP(&fbh5_file);
+  }
+  for (chunk = chunks; chunk-- > 0; ) {
+    fbh5_file.data = floats_ftp_ordering+chunk*chunk_element_count;
+    filterbank_h5_write_FTP_reversed(&fbh5_file);
+  }
 
-  fbh5_file.data = floats_tpf_ordering;
-  filterbank_h5_write(&fbh5_file);
+  for (chunk = 0; chunk < chunks; chunk ++) {
+    fbh5_file.data = floats_tpf_ordering+chunk*chunk_element_count;
+    filterbank_h5_write(&fbh5_file);
+  }
 
   // HDF5 via struct
   filterbank_h5_close(&fbh5_file);

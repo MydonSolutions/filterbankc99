@@ -306,9 +306,23 @@ int filterbank_h5_open_explicit(char* filepath, filterbank_h5_file_t *fbh5file, 
   if (fbh5file->ntimes_per_write == 0) {
     fbh5file->ntimes_per_write = 1;
   }
+  if (fbh5file->nchans_per_write == 0) {
+    // auto-scale nchans_per_write for optimal chunks of <= 1 MB
+    fbh5file->nchans_per_write = 1024*1024/(fbh5file->ntimes_per_write*fbh5file->header.nifs*H5Tget_size(Tdata));
+    if (fbh5file->nchans_per_write > fbh5file->header.nchans) {
+      fbh5file->nchans_per_write = fbh5file->header.nchans;
+    }
+    if (fbh5file->nchans_per_write == 0) {
+      fbh5file->nchans_per_write = 1;
+    }
+    while (fbh5file->header.nchans%fbh5file->nchans_per_write != 0) {
+      fbh5file->nchans_per_write -= 1;
+    }
+    filterbank_print_info(__FUNCTION__, "Set nchans_per_write=%lu attempting to achieve 1 MB chunks.", fbh5file->nchans_per_write);
+  }
 
   const hsize_t dim3_data_lim[] = {H5S_UNLIMITED, fbh5file->header.nifs, fbh5file->header.nchans};
-  const hsize_t dim3_data_chunk[] = {fbh5file->ntimes_per_write, fbh5file->header.nifs, fbh5file->header.nchans};
+  const hsize_t dim3_data_chunk[] = {fbh5file->ntimes_per_write, fbh5file->header.nifs, fbh5file->nchans_per_write};
 
   fbh5file->ds_data.name = "data";
   H5DSset(3, dim3_data_lim, dim3_data_chunk, &fbh5file->ds_data);
@@ -363,10 +377,14 @@ void filterbank_h5_close(filterbank_h5_file_t *fbh5file) {
 int filterbank_h5_change_ntimes_per_write(filterbank_h5_file_t* fbh5file, size_t ntimes_per_write) {
   herr_t status = 0;
   fbh5file->ds_data.dimchunks[0] = ntimes_per_write;
+  fbh5file->ds_data.dims[0] = ntimes_per_write;
   status += H5DSchunk_update(&fbh5file->ds_data);
 
   fbh5file->ds_mask.dimchunks[0] = ntimes_per_write;
+  fbh5file->ds_mask.dims[0] = ntimes_per_write;
   status += H5DSchunk_update(&fbh5file->ds_mask);
+
+  fbh5file->ntimes_per_write = ntimes_per_write;
   return status;
 }
 
@@ -389,7 +407,6 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
 
 #define __h5_write_FTP_preamble \
   /* cache the current dims, for the hyperslab start*/\
-  hsize_t start[3] = {fbh5file->ds_data.dims[0], 0, 0};\
   hsize_t count[3] = {1, 1, 1};\
   hsize_t block[3] = {fbh5file->ds_data.dimchunks[0], fbh5file->ds_data.dimchunks[1], 1};\
   herr_t status;\
@@ -410,7 +427,6 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
     /*set chunk dimensions to TP1*/\
     dataspace->dimchunks[2] = 1;\
     status = H5DSchunk_update(dataspace);\
-    start[2] = 0;
 
 #define __h5_write_FTP_innermost \
   status += H5Sclose(dataspace->S_id);\
@@ -418,21 +434,17 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
   H5Sselect_hyperslab(\
     dataspace->S_id,\
     H5S_SELECT_SET,\
-    start,\
+    dataspace->hyperslab_start,\
     NULL,\
     count,\
     block\
   );\
-  status = H5DSwrite(\
-    dataspace,\
-    ((char*)dataspace_datapointers[dataspace_i]) + f*H5DSsize(dataspace)\
-  );\
-  if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSwrite failure on '%s'", dataspace->name); return -1;}\
-  start[2] += 1;
+  status = H5DSwrite(dataspace, ((char*)dataspace_datapointers[dataspace_i]) + f*H5DSsize(dataspace)); \
+  if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSwrite failure on '%s'", dataspace->name); return -1;}
 
 #define __h5_write_FTP_conclusion \
     /*return chunk dimensions to TPF*/\
-    dataspace->dimchunks[2] = fbh5file->header.nchans;\
+    dataspace->dimchunks[2] = fbh5file->nchans_per_write;\
     status = H5DSchunk_update(dataspace);\
   }\
   return 0;
@@ -440,7 +452,7 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
 
 int filterbank_h5_write_FTP(filterbank_h5_file_t* fbh5file) {
   __h5_write_FTP_preamble
-  for (int f = 0; f < fbh5file->header.nchans; f++) {
+  for (int f = 0; f < fbh5file->nchans_per_write; f++) {
     __h5_write_FTP_innermost
   }
   __h5_write_FTP_conclusion
@@ -448,7 +460,7 @@ int filterbank_h5_write_FTP(filterbank_h5_file_t* fbh5file) {
 
 int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file) {
   __h5_write_FTP_preamble
-  for (int f = fbh5file->header.nchans; f-- > 0; ) {
+  for (int f = fbh5file->nchans_per_write; f-- > 0; ) {
     __h5_write_FTP_innermost
   }
   __h5_write_FTP_conclusion

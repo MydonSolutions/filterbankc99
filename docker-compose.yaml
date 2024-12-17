@@ -1,0 +1,9 @@
+services:
+  filterbankc99:
+    container_name: filterbankc99
+    build: .
+    entrypoint: /bin/sh
+    stdin_open: true
+    tty: true
+    volumes:
+    - .:/work/filterbankc99
