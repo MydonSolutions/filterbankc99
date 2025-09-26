@@ -133,7 +133,7 @@ ssize_t filterbank_fd_write_FTP_reversed(
 
 // Utilities mimicking those for h5 for easy swapout
 
-int filterbank_open(char* filepath, filterbank_file_t *fbfile) {
+int filterbank_open(const char* filepath, filterbank_file_t *fbfile) {
   fbfile->file_descriptor = open(filepath, O_WRONLY | O_CREAT | O_TRUNC, 0664);
   if (fbfile->file_descriptor <= 0) {
     filterbank_print_error(__FUNCTION__, "open failed with path '%s'.", filepath);

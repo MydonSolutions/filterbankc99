@@ -25,9 +25,9 @@ typedef struct
 extern "C" {
 #endif
 
-int filterbank_h5_open_explicit(char* filepath, filterbank_h5_file_t *fbh5file, hid_t Tdata);
+int filterbank_h5_open_explicit(const char* filepath, filterbank_h5_file_t *fbh5file, hid_t Tdata, hid_t Paccess);
 
-static inline int filterbank_h5_open(char* filepath, filterbank_h5_file_t *fbh5file) {
+static inline int filterbank_h5_open(const char* filepath, filterbank_h5_file_t *fbh5file) {
 	hid_t elem_type;
 	switch(fbh5file->header.nbits) {
 		case 8:
@@ -45,7 +45,7 @@ static inline int filterbank_h5_open(char* filepath, filterbank_h5_file_t *fbh5f
 		default:
 			return 1;
 	}
-	return filterbank_h5_open_explicit(filepath, fbh5file, H5Tcopy(elem_type));
+	return filterbank_h5_open_explicit(filepath, fbh5file, H5Tcopy(elem_type), H5P_DEFAULT);
 }
 
 int filterbank_h5_change_ntimes_per_write(filterbank_h5_file_t* fbh5file, size_t ntimes_per_write);

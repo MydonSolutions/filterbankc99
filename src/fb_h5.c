@@ -296,8 +296,8 @@ int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
 	return 0;
 }
 
-int filterbank_h5_open_explicit(char* filepath, filterbank_h5_file_t *fbh5file, hid_t Tdata) {
-  fbh5file->file_id = H5Fcreate(filepath, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+int filterbank_h5_open_explicit(const char* filepath, filterbank_h5_file_t *fbh5file, hid_t Tdata, hid_t Paccess) {
+  fbh5file->file_id = H5Fcreate(filepath, H5F_ACC_TRUNC, H5P_DEFAULT, Paccess);
 	if (fbh5file->file_id <= 0) {
 		filterbank_print_error(__FUNCTION__, "H5Fcreate failed with path '%s'.", filepath);
 		return -1;

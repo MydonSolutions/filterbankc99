@@ -61,7 +61,7 @@ typedef struct
   int file_descriptor;
 } filterbank_file_t;
 
-int filterbank_open(char* filepath, filterbank_file_t *fbfile);
+int filterbank_open(const char* filepath, filterbank_file_t *fbfile);
 
 static inline void filterbank_alloc(filterbank_file_t *fbfile) {
   fbfile->data = malloc(fbfile->ntimes_per_write*filterbank_data_bytesize(&fbfile->header));
