@@ -1,5 +1,5 @@
 project('filterbankc99', 'c',
-  version: '1.4.0',
+  version: '1.5.0',
   default_options: [
     'c_std=c99',
     'buildtype=release',
@@ -29,7 +29,7 @@ dep_lst = [
   m_dep,
 ]
 
-hdf5_dep = dependency('HDF5', required: false)
+hdf5_dep = dependency('hdf5', required: false, version: '>=1.14.0', language: 'c')
 cfg_lst.set('HDF5', hdf5_dep.found())
 if hdf5_dep.found()
   dep_lst += [

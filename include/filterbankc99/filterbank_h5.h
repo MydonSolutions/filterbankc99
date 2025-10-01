@@ -1,9 +1,9 @@
 #ifndef FILTERBANK_C99_H5_H_
 #define FILTERBANK_C99_H5_H_
 
-#include "hdf5/serial/hdf5.h"
 #include <string.h>
 #include <stdlib.h>
+#include "hdf5.h"
 
 #include "h5dsc99/h5_dataspace.h"
 #include "filterbankc99/filterbank_header.h"
