@@ -69,15 +69,15 @@ int main(int argc, char * argv[])
 
     return 0;
   }
-  int i=0, t=0, c=0, chunk=0;
+  size_t i=0, t=0, c=0, chunk=0;
   float* floats_ftp_ordering = NULL;
   float* floats_tpf_ordering = NULL;
 
   char fname[80];
-  i = 0;
+  int file_idx = 0;
 
   // HDF5 via struct
-  sprintf(fname, "fbutils_h5.%02d.fbh5", i);
+  sprintf(fname, "fbutils_h5.%02d.fbh5", file_idx);
 
   filterbank_h5_file_t fbh5_file = {0};
   int chunks = 1;
@@ -97,9 +97,10 @@ int main(int argc, char * argv[])
   free(fbh5_file.data); // free the allocated data pointer
 
   // FTP and TPF data malloc
-  const size_t floats_size = ntimes_per_write
+  const size_t floats_size = chunks
+    * ntimes_per_write
     * hdr.nifs
-    * hdr.nchans
+    * fbh5_file.nchans_per_write
     * sizeof(float);
   floats_tpf_ordering = malloc(floats_size);
   memset(floats_tpf_ordering, 0, floats_size);
@@ -107,14 +108,14 @@ int main(int argc, char * argv[])
   memset(floats_ftp_ordering, 0, floats_size);
 
   for (chunk=0; chunk < chunks; chunk ++) {
-    for (t=0; t < ntimes_per_write; t++) {
+    for (t=0; t < fbh5_file.ntimes_per_write; t++) {
       for (i = 0; i < hdr.nifs; i ++) {
         for (c = 0; c < fbh5_file.nchans_per_write; c ++) {
           int chan = (chunk*fbh5_file.nchans_per_write+c);
           float sample = t*1000.0 + chan + 1.0;
 
-          floats_tpf_ordering[((chunk*fbh5_file.ntimes_per_write + t)*hdr.nifs + i)*fbh5_file.nchans_per_write + c] = sample;
-          floats_ftp_ordering[(chan*ntimes_per_write + t)*hdr.nifs + i] = sample;
+          floats_tpf_ordering[((chunk*ntimes_per_write + t)*hdr.nifs + i)*fbh5_file.nchans_per_write + c] = sample;
+          floats_ftp_ordering[((chunk*fbh5_file.nchans_per_write + c)*fbh5_file.ntimes_per_write + t)*hdr.nifs + i] = sample;
         }
       }
     }

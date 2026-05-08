@@ -422,12 +422,12 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
   H5_open_dataspace_t* dataspace;\
   for (int dataspace_i = 0; dataspace_i < dataspace_count; dataspace_i++) {\
     dataspace = dataspaces[dataspace_i];\
-    hsize_t dataspace_size = H5DSsize(dataspace);\
     status = H5DSextend(dataspace);\
     if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSextend failure on '%s'", dataspace->name); return -1;}  \
     /*set chunk dimensions to TP1*/\
     dataspace->dimchunks[2] = 1;\
     status = H5DSchunk_update(dataspace);\
+    size_t dataspace_size = H5DSsize(dataspace);
 
 #define __h5_write_FTP_innermost \
   status += H5Sclose(dataspace->S_id);\
