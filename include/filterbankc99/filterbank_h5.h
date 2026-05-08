@@ -62,6 +62,11 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file);
 int filterbank_h5_write_FTP(filterbank_h5_file_t* fbh5file);
 int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file);
 
+void filterbank_h5_read_header(
+  hid_t data_id,
+  filterbank_header_t* fb_header
+);
+
 #ifdef __cplusplus
 }
 #endif

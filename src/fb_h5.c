@@ -35,7 +35,7 @@ herr_t _H5AwriteScalar(
 
 int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
   hid_t Tstr_id = H5Tcopy(H5T_C_S1);
-  H5Tset_size(Tstr_id, 10);
+  H5Tset_size(Tstr_id, 11);
   if (_H5AwriteScalar(
     fbh5file->file_id,
     "CLASS",
@@ -46,7 +46,7 @@ int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
 	}
 
   Tstr_id = H5Tcopy(H5T_C_S1);
-  H5Tset_size(Tstr_id, 3);
+  H5Tset_size(Tstr_id, 4);
   if (_H5AwriteScalar(
     fbh5file->file_id,
     "VERSION",
@@ -202,7 +202,7 @@ int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
 	}
   
 	int str_len = strlen(fbh5file->header.rawdatafile);
-  if (fbh5file->header.rawdatafile != NULL && str_len > 0) {
+  if (str_len > 0) {
     Tstr_id = H5Tcopy(H5T_C_S1);
     H5Tset_size(Tstr_id, str_len);
     if (_H5AwriteScalar(
@@ -216,7 +216,7 @@ int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
   }
   
 	str_len = strlen(fbh5file->header.source_name);
-  if (fbh5file->header.source_name != NULL && str_len > 0) {
+  if (str_len > 0) {
     Tstr_id = H5Tcopy(H5T_C_S1);
     H5Tset_size(Tstr_id, str_len);
     if (_H5AwriteScalar(
@@ -464,4 +464,123 @@ int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file) {
     __h5_write_FTP_innermost
   }
   __h5_write_FTP_conclusion
+}
+
+void filterbank_h5_read_header(
+  hid_t data_id,
+  filterbank_header_t* fb_header
+) {
+  fb_header->az_start = H5DSread_double(
+    data_id,
+    "az_start"
+  );
+
+  fb_header->za_start = H5DSread_double(
+    data_id,
+    "za_start"
+  );
+
+  fb_header->barycentric = H5DSread_int(
+    data_id,
+    "barycentric"
+  );
+
+  fb_header->data_type = H5DSread_int(
+    data_id,
+    "data_type"
+  );
+
+  fb_header->fch1 = H5DSread_double(
+    data_id,
+    "fch1"
+  );
+
+  fb_header->foff = H5DSread_double(
+    data_id,
+    "foff"
+  );
+
+  fb_header->ibeam = H5DSread_int(
+    data_id,
+    "ibeam"
+  );
+
+  fb_header->nbeams = H5DSread_int(
+    data_id,
+    "nbeams"
+  );
+
+  fb_header->machine_id = H5DSread_int(
+    data_id,
+    "machine_id"
+  );
+
+  fb_header->nbits = H5DSread_int(
+    data_id,
+    "nbits"
+  );
+
+  fb_header->nchans = H5DSread_int(
+    data_id,
+    "nchans"
+  );
+
+  fb_header->nifs = H5DSread_int(
+    data_id,
+    "nifs"
+  );
+
+  fb_header->pulsarcentric = H5DSread_int(
+    data_id,
+    "pulsarcentric"
+  );
+
+
+  if (H5Aexists(data_id, "rawdatafile")) {
+    char *raw_data_file = H5DSread_all(
+      data_id,
+      "rawdatafile"
+    );
+    strncpy(fb_header->rawdatafile, raw_data_file, sizeof(fb_header->rawdatafile)-1);
+    free(raw_data_file);
+  }
+
+  char *source_name = H5DSread_all(
+    data_id,
+    "source_name"
+  );
+  strncpy(fb_header->source_name, source_name, sizeof(fb_header->source_name)-1);
+  free(source_name);
+
+  fb_header->src_dej = H5DSread_double(
+    data_id,
+    "src_dej"
+  );
+
+  fb_header->src_raj = H5DSread_double(
+    data_id,
+    "src_raj"
+  );
+
+  fb_header->tsamp = H5DSread_double(
+    data_id,
+    "tsamp"
+  );
+
+  fb_header->tstart = H5DSread_double(
+    data_id,
+    "tstart"
+  );
+
+  fb_header->telescope_id = H5DSread_int(
+    data_id,
+    "telescope_id"
+  );
+
+  if (H5Aexists(data_id, "nfpc")) {
+    fb_header->nfpc = H5DSread_int(
+      data_id,
+      "nfpc"
+    );
+  }
 }
