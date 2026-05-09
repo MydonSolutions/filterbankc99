@@ -467,6 +467,27 @@ int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file) {
   __h5_write_FTP_conclusion
 }
 
+filterbank_h5_file_t filterbank_h5_access_file_explicit(
+  char *filepath,
+  hid_t Paccess
+) {
+  filterbank_h5_file_t fbh5 = {0};
+  fbh5.file_id = H5Fopen(filepath, H5F_ACC_RDONLY, Paccess);
+
+  if (fbh5.file_id == H5I_INVALID_HID) {
+    filterbank_print_error(__FUNCTION__, "Failed to open file: '%s'", filepath);
+    return fbh5;
+  }
+  fbh5.ds_mask.name = "mask";
+  H5DSaccess(fbh5.file_id, H5P_DEFAULT, &fbh5.ds_mask);
+  fbh5.ds_data.name = "data";
+  H5DSaccess(fbh5.file_id, H5P_DEFAULT, &fbh5.ds_data);
+
+  filterbank_h5_read_header(fbh5.ds_data.D_id, &fbh5.header);
+
+  return fbh5;
+}
+
 void filterbank_h5_read_header(
   hid_t data_id,
   filterbank_header_t* fb_header
@@ -584,4 +605,49 @@ void filterbank_h5_read_header(
       "nfpc"
     );
   }
+}
+
+void filterbank_h5_change_access_chunking(
+  filterbank_h5_file_t* fbh5,
+  size_t ntimes_per_read,
+  size_t nifs_per_read,
+  size_t nchans_per_read
+) {
+  if (fbh5->ds_data.dimchunks == NULL) {
+    fbh5->ds_data.dimchunks = malloc(fbh5->ds_data.rank*sizeof(hsize_t));
+  }
+  if (fbh5->ds_mask.dimchunks == NULL) {
+    fbh5->ds_mask.dimchunks = malloc(fbh5->ds_mask.rank*sizeof(hsize_t));
+  }
+  fbh5->ds_data.dimchunks[0] = ntimes_per_read;
+  fbh5->ds_mask.dimchunks[0] = ntimes_per_read;
+  
+  fbh5->ds_data.dimchunks[1] = nifs_per_read;
+  fbh5->ds_mask.dimchunks[1] = nifs_per_read;
+  
+  fbh5->ds_data.dimchunks[2] = nchans_per_read;
+  fbh5->ds_mask.dimchunks[2] = nchans_per_read;
+
+  H5DSaccess_set_chunks(&fbh5->ds_data);
+  H5DSaccess_set_chunks(&fbh5->ds_mask);
+}
+
+int filterbank_h5_read(
+  filterbank_h5_file_t* fbh5
+) {
+  herr_t status_data = H5DSread(&fbh5->ds_data, fbh5->data);
+  if (status_data < 0) {
+    filterbank_print_error(__FUNCTION__, "Failed to read data: %d", status_data);
+    return status_data;
+  }
+  herr_t status_mask = H5DSread(&fbh5->ds_mask, fbh5->mask);
+  if (status_mask < 0) {
+    filterbank_print_error(__FUNCTION__, "Failed to read mask: %d", status_mask);
+    return status_mask;
+  }
+  if (status_data != status_mask) {
+    filterbank_print_warn(__FUNCTION__, "Read statuses differ between mask (%d) and data (%d)", status_mask, status_data);
+  }
+  
+  return status_data;
 }
