@@ -29,7 +29,8 @@ dep_lst = [
   m_dep,
 ]
 
-hdf5_dep = dependency('hdf5', required: false, version: '>=1.14.0', language: 'c')
+require_hdf5 = get_option('hdf5')
+hdf5_dep = dependency('hdf5', required: require_hdf5, version: '>=1.14.0', language: 'c')
 cfg_lst.set('HDF5', hdf5_dep.found())
 if hdf5_dep.found()
   dep_lst += [

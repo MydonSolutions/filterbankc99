@@ -1,0 +1,9 @@
+[wrap-git]
+url = https://github.com/HDFGroup/hdf5
+revision = hdf5_1.14.6
+depth = 1
+method = cmake
+diff_files = hdf5/version.diff
+
+[provide]
+hdf5 = hdf5_shared_dep

@@ -7,7 +7,9 @@ Enables writing the data portion from a buffer order by [Channel=slowest, Time, 
 Format | Capabilities | API
 -|-|-
 SIGPROC | Read and Write | Character Buffer Header, File Descriptor and Struct
-HDF5 (FBH5) | Write | Struct
+HDF5 (FBH5) | Read and Write | Struct
+
+`hdf5=true` option forces the installation of [HDF5 v1.14.6](https://github.com/HDFGroup/hdf5/tree/hdf5_1.14.6) and [h5dsc99 v0.5.0](https://github.com/MydonSolutions/h5dsc99).
 
 See [tests/filterbank.c](./tests/filterbank.c) for implementation code of all use cases.
 

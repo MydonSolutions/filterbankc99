@@ -1,0 +1,5 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2 +2 @@
+-project (HDF5 C)
++project (HDF5 LANGUAGES C VERSION 1.14.6)
