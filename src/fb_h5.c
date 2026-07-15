@@ -468,7 +468,7 @@ int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file) {
 }
 
 filterbank_h5_file_t filterbank_h5_access_file_explicit(
-  char *filepath,
+  const char *filepath,
   hid_t Paccess
 ) {
   filterbank_h5_file_t fbh5 = {0};
