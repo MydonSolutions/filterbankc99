@@ -564,6 +564,7 @@ void filterbank_h5_read_header(
       "rawdatafile"
     );
     strncpy(fb_header->rawdatafile, raw_data_file, sizeof(fb_header->rawdatafile)-1);
+    fb_header->rawdatafile[strlen(raw_data_file)] = '\0';
     free(raw_data_file);
   }
 
@@ -572,6 +573,7 @@ void filterbank_h5_read_header(
     "source_name"
   );
   strncpy(fb_header->source_name, source_name, sizeof(fb_header->source_name)-1);
+  fb_header->source_name[strlen(source_name)] = '\0';
   free(source_name);
 
   fb_header->src_dej = H5DSread_double(
