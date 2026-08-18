@@ -1,0 +1,1 @@
+option('hdf5', type : 'boolean', value : false, description: 'Force enable hdf5, installing if needed.')

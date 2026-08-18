@@ -4,7 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get --fix-missing update -y && apt-get install -y \
     git \
-    libhdf5-dev \
+    cmake \
     linux-tools-generic \
     pkg-config \
     python3-pip \
@@ -16,6 +16,6 @@ COPY . /work/filterbankc99
 
 RUN cd /work/filterbankc99 \
 && git submodule update --init \
-&& meson setup /work/filterbankc99_build \
+&& meson setup /work/filterbankc99_build -Dhdf5=true \
 && cd /work/filterbankc99_build \
 && ninja install

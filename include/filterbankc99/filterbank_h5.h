@@ -62,6 +62,33 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file);
 int filterbank_h5_write_FTP(filterbank_h5_file_t* fbh5file);
 int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file);
 
+
+filterbank_h5_file_t filterbank_h5_access_file_explicit(
+  const char *filepath,
+  hid_t Paccess
+);
+
+void filterbank_h5_change_access_chunking(
+  filterbank_h5_file_t* fbh5,
+  size_t ntimes_per_read,
+  size_t nifs_per_read,
+  size_t nchans_per_read
+);
+
+void filterbank_h5_read_header(
+  hid_t data_id,
+  filterbank_header_t* fb_header
+);
+
+// Returns:
+//   -2 if either mask or data hyperslab increment failed
+//   -1 if either mask or data read failed
+//   1 if the data hyperslab has wrapped back to all zero indices
+//   otherwise 0 (indicating more to read)
+int filterbank_h5_read(
+  filterbank_h5_file_t* fbh5
+);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1,0 +1,7 @@
+[wrap-git]
+url = https://github.com/MydonSolutions/h5dsc99
+revision = v0.5.0
+depth = 1
+
+[provide]
+h5dsc99 = lib_h5dsc99_dep 

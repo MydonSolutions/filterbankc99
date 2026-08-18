@@ -35,7 +35,7 @@ herr_t _H5AwriteScalar(
 
 int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
   hid_t Tstr_id = H5Tcopy(H5T_C_S1);
-  H5Tset_size(Tstr_id, 10);
+  H5Tset_size(Tstr_id, 11);
   if (_H5AwriteScalar(
     fbh5file->file_id,
     "CLASS",
@@ -46,7 +46,7 @@ int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
 	}
 
   Tstr_id = H5Tcopy(H5T_C_S1);
-  H5Tset_size(Tstr_id, 3);
+  H5Tset_size(Tstr_id, 4);
   if (_H5AwriteScalar(
     fbh5file->file_id,
     "VERSION",
@@ -202,7 +202,7 @@ int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
 	}
   
 	int str_len = strlen(fbh5file->header.rawdatafile);
-  if (fbh5file->header.rawdatafile != NULL && str_len > 0) {
+  if (str_len > 0) {
     Tstr_id = H5Tcopy(H5T_C_S1);
     H5Tset_size(Tstr_id, str_len);
     if (_H5AwriteScalar(
@@ -216,7 +216,7 @@ int _filterbank_h5_write_attributes(filterbank_h5_file_t *fbh5file) {
   }
   
 	str_len = strlen(fbh5file->header.source_name);
-  if (fbh5file->header.source_name != NULL && str_len > 0) {
+  if (str_len > 0) {
     Tstr_id = H5Tcopy(H5T_C_S1);
     H5Tset_size(Tstr_id, str_len);
     if (_H5AwriteScalar(
@@ -427,6 +427,7 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
     /*set chunk dimensions to TP1*/\
     dataspace->dimchunks[2] = 1;\
     status = H5DSchunk_update(dataspace);\
+    size_t dataspace_size = H5DSsize(dataspace);
 
 #define __h5_write_FTP_innermost \
   status += H5Sclose(dataspace->S_id);\
@@ -439,7 +440,7 @@ int filterbank_h5_write(filterbank_h5_file_t* fbh5file) {
     count,\
     block\
   );\
-  status = H5DSwrite(dataspace, ((char*)dataspace_datapointers[dataspace_i]) + f*H5DSsize(dataspace)); \
+  status = H5DSwrite(dataspace, ((char*)dataspace_datapointers[dataspace_i]) + f*dataspace_size); \
   if (status < 0) { filterbank_print_error(__FUNCTION__, "H5DSwrite failure on '%s'", dataspace->name); return -1;}
 
 #define __h5_write_FTP_conclusion \
@@ -464,4 +465,191 @@ int filterbank_h5_write_FTP_reversed(filterbank_h5_file_t* fbh5file) {
     __h5_write_FTP_innermost
   }
   __h5_write_FTP_conclusion
+}
+
+filterbank_h5_file_t filterbank_h5_access_file_explicit(
+  const char *filepath,
+  hid_t Paccess
+) {
+  filterbank_h5_file_t fbh5 = {0};
+  fbh5.file_id = H5Fopen(filepath, H5F_ACC_RDONLY, Paccess);
+
+  if (fbh5.file_id == H5I_INVALID_HID) {
+    filterbank_print_error(__FUNCTION__, "Failed to open file: '%s'", filepath);
+    return fbh5;
+  }
+  fbh5.ds_mask.name = "mask";
+  H5DSaccess(fbh5.file_id, H5P_DEFAULT, &fbh5.ds_mask);
+  fbh5.ds_data.name = "data";
+  H5DSaccess(fbh5.file_id, H5P_DEFAULT, &fbh5.ds_data);
+
+  filterbank_h5_read_header(fbh5.ds_data.D_id, &fbh5.header);
+
+  return fbh5;
+}
+
+void filterbank_h5_read_header(
+  hid_t data_id,
+  filterbank_header_t* fb_header
+) {
+  fb_header->az_start = H5DSread_double(
+    data_id,
+    "az_start"
+  );
+
+  fb_header->za_start = H5DSread_double(
+    data_id,
+    "za_start"
+  );
+
+  fb_header->barycentric = H5DSread_int(
+    data_id,
+    "barycentric"
+  );
+
+  fb_header->data_type = H5DSread_int(
+    data_id,
+    "data_type"
+  );
+
+  fb_header->fch1 = H5DSread_double(
+    data_id,
+    "fch1"
+  );
+
+  fb_header->foff = H5DSread_double(
+    data_id,
+    "foff"
+  );
+
+  fb_header->ibeam = H5DSread_int(
+    data_id,
+    "ibeam"
+  );
+
+  fb_header->nbeams = H5DSread_int(
+    data_id,
+    "nbeams"
+  );
+
+  fb_header->machine_id = H5DSread_int(
+    data_id,
+    "machine_id"
+  );
+
+  fb_header->nbits = H5DSread_int(
+    data_id,
+    "nbits"
+  );
+
+  fb_header->nchans = H5DSread_int(
+    data_id,
+    "nchans"
+  );
+
+  fb_header->nifs = H5DSread_int(
+    data_id,
+    "nifs"
+  );
+
+  fb_header->pulsarcentric = H5DSread_int(
+    data_id,
+    "pulsarcentric"
+  );
+
+
+  if (H5Aexists(data_id, "rawdatafile")) {
+    char *raw_data_file = H5DSread_all(
+      data_id,
+      "rawdatafile"
+    );
+    strncpy(fb_header->rawdatafile, raw_data_file, sizeof(fb_header->rawdatafile)-1);
+    fb_header->rawdatafile[strlen(raw_data_file)] = '\0';
+    free(raw_data_file);
+  }
+
+  char *source_name = H5DSread_all(
+    data_id,
+    "source_name"
+  );
+  strncpy(fb_header->source_name, source_name, sizeof(fb_header->source_name)-1);
+  fb_header->source_name[strlen(source_name)] = '\0';
+  free(source_name);
+
+  fb_header->src_dej = H5DSread_double(
+    data_id,
+    "src_dej"
+  );
+
+  fb_header->src_raj = H5DSread_double(
+    data_id,
+    "src_raj"
+  );
+
+  fb_header->tsamp = H5DSread_double(
+    data_id,
+    "tsamp"
+  );
+
+  fb_header->tstart = H5DSread_double(
+    data_id,
+    "tstart"
+  );
+
+  fb_header->telescope_id = H5DSread_int(
+    data_id,
+    "telescope_id"
+  );
+
+  if (H5Aexists(data_id, "nfpc")) {
+    fb_header->nfpc = H5DSread_int(
+      data_id,
+      "nfpc"
+    );
+  }
+}
+
+void filterbank_h5_change_access_chunking(
+  filterbank_h5_file_t* fbh5,
+  size_t ntimes_per_read,
+  size_t nifs_per_read,
+  size_t nchans_per_read
+) {
+  if (fbh5->ds_data.dimchunks == NULL) {
+    fbh5->ds_data.dimchunks = malloc(fbh5->ds_data.rank*sizeof(hsize_t));
+  }
+  if (fbh5->ds_mask.dimchunks == NULL) {
+    fbh5->ds_mask.dimchunks = malloc(fbh5->ds_mask.rank*sizeof(hsize_t));
+  }
+  fbh5->ds_data.dimchunks[0] = ntimes_per_read;
+  fbh5->ds_mask.dimchunks[0] = ntimes_per_read;
+  
+  fbh5->ds_data.dimchunks[1] = nifs_per_read;
+  fbh5->ds_mask.dimchunks[1] = nifs_per_read;
+  
+  fbh5->ds_data.dimchunks[2] = nchans_per_read;
+  fbh5->ds_mask.dimchunks[2] = nchans_per_read;
+
+  H5DSaccess_set_chunks(&fbh5->ds_data);
+  H5DSaccess_set_chunks(&fbh5->ds_mask);
+}
+
+int filterbank_h5_read(
+  filterbank_h5_file_t* fbh5
+) {
+  herr_t status_data = H5DSread(&fbh5->ds_data, fbh5->data);
+  if (status_data < 0) {
+    filterbank_print_error(__FUNCTION__, "Failed to read data: %d", status_data);
+    return status_data;
+  }
+  herr_t status_mask = H5DSread(&fbh5->ds_mask, fbh5->mask);
+  if (status_mask < 0) {
+    filterbank_print_error(__FUNCTION__, "Failed to read mask: %d", status_mask);
+    return status_mask;
+  }
+  if (status_data != status_mask) {
+    filterbank_print_warn(__FUNCTION__, "Read statuses differ between mask (%d) and data (%d)", status_mask, status_data);
+  }
+  
+  return status_data;
 }
